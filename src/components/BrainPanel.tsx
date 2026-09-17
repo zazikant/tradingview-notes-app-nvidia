@@ -211,6 +211,13 @@ export function BrainPanel({ onClose }: BrainPanelProps) {
               }
             } else if (ev.type === 'chunk') {
               appendToMessage(assistantId, ev.text || '');
+            } else if (ev.type === 'reset') {
+              // Pipeline-level retry: clear the partial answer buffer so the
+              // next attempt's chunks start fresh instead of appending onto
+              // the failed attempt's truncated output.
+              setMessages((prev) => prev.map((m) => m.id === assistantId
+                ? { ...m, content: '' }
+                : m));
             } else if (ev.type === 'stage-end') {
               setEvents((p) => [...p, {
                 ts, type: 'stage-end', stage: ev.stage, ok: ev.ok,

@@ -4,24 +4,44 @@ import {
   rerankAndAggregate,
   buildContextFromAggregated,
   type SearchHit,
-} from '@/lib/brain/pinecone';
+} from '@/lib/brain/pinecone-edge';  // Edge-compatible (no Pinecone SDK)
 import { nvidiaChatStreamControlled } from '@/lib/brain/nvidia';
 
-export const runtime = 'nodejs';
-export const maxDuration = 180;
+// Edge runtime — Vercel Hobby caps Edge at 30s (vs 60s for Node).
+// We use Edge because:
+//   1. SSE streaming works more reliably on Edge (no Node buffer layer)
+//   2. 30s cap forces us to keep LLM calls short (25s timeout in nvidia.ts)
+//   3. Cold starts are near-zero on Edge
+// The Pinecone SDK uses node:stream so we use pinecone-edge.ts (raw REST).
+export const runtime = 'edge';
+export const maxDuration = 30;  // Vercel Hobby Edge cap
+
+// Pipeline-level retry — if the first attempt times out or aborts mid-stream,
+// retry up to 3 times with backoff. Each attempt gets a fresh 25s budget.
+const MAX_ANSWER_ATTEMPTS = 3;
+// 2048 tokens — matches ax-translator's default. Keeps GPT-OSS-20B under
+// 25s reliably (TTFB ~3-5s + ~2000 tokens at ~80 tokens/s = ~28s worst case,
+// usually much faster). Larger values (4096+) can exceed the 25s timeout
+// on Vercel Hobby Edge, triggering the abort-midway bug.
+const ANSWER_MAX_TOKENS = 2048;
 
 /**
  * POST /api/brain/chat — streaming RAG chat (Server-Sent Events)
  *
  * Body: { query, top_k?, min_score?, history? }
  *   history: optional array of { role: 'user' | 'assistant', content: string }
- *            for multi-turn chat. Default empty.
+ *
+ * Pipeline:
+ *   1. Search Pinecone (via Edge-compatible REST API)
+ *   2. Aggregate + build context
+ *   3. Stream answer via NVIDIA with pipeline-level retry (3 attempts)
  *
  * Response: text/event-stream with structured events:
  *   stage-start  { stage: 'search' | 'answer' }
  *   log          { line: string }
- *   sources      { sources: [{ filename, ticker, avgScore, chunkCount }] }
- *   chunk        { text: string }                 // streamed answer token
+ *   sources      { sources: [...] }
+ *   chunk        { text: string }
+ *   reset        { stage: 'answer' }  // emitted before each retry — client clears buffer
  *   stage-end    { stage, ok, elapsedMs, summary }
  *   pipeline-end { ok: true }
  *   error        { message: string }
@@ -62,7 +82,7 @@ export async function POST(req: NextRequest) {
       const pipelineStart = Date.now();
 
       try {
-        // ── Stage 1: search Pinecone ─────────────────────────────────
+        // ── Stage 1: search Pinecone (Edge-compatible REST) ──────────
         send('stage-start', { stage: 'search' });
         send('log', { line: `[pipeline] searching top ${topK} chunks for: "${query.slice(0, 80)}${query.length > 80 ? '…' : ''}"` });
 
@@ -83,16 +103,16 @@ export async function POST(req: NextRequest) {
 
         const sources = aggregated.map((a) => ({
           filename: a.filename,
-          ticker: a.ticker || '',
+          ticker: (a as any).ticker || '',
           avgScore: Number(a.avgScore.toFixed(3)),
           chunkCount: a.chunkCount,
         }));
         send('sources', { sources });
 
-        const context = buildContextFromAggregated(aggregated, 4000);
+        const context = buildContextFromAggregated(aggregated, 2000);  // smaller context = faster TTFB
         send('stage-end', { stage: 'search', ok: true, elapsedMs: Date.now() - pipelineStart, summary: `${hits.length} chunks in ${aggregated.length} notes` });
 
-        // ── Stage 2: stream the answer via OpenCode ─────────────────
+        // ── Stage 2: stream the answer via NVIDIA (with pipeline retry) ───
         send('stage-start', { stage: 'answer' });
 
         const systemPrompt = context
@@ -111,25 +131,51 @@ ${context}`
           { role: 'user', content: query },
         ];
 
-        try {
-          const result = await nvidiaChatStreamControlled({
-            messages,
-            temperature: 0.4,
-            maxTokens: 1500,
-            onLog: (line) => send('log', { line }),
-            onChunk: (text) => send('chunk', { text }),
-          });
+        let answerOk = false;
+        let lastErr = '';
 
-          send('stage-end', {
-            stage: 'answer',
-            ok: true,
-            elapsedMs: result.elapsedMs,
-            summary: `${result.content.length} chars in ${result.attempts} attempt(s)`,
-          });
-        } catch (err: any) {
-          send('log', { line: `[nvidia] final failure: ${err?.message || 'unknown'}` });
-          send('stage-end', { stage: 'answer', ok: false, elapsedMs: Date.now() - pipelineStart, summary: 'answer failed' });
-          send('error', { message: `NVIDIA call failed: ${err?.message || 'unknown'}` });
+        for (let attempt = 1; attempt <= MAX_ANSWER_ATTEMPTS; attempt++) {
+          send('log', { line: `[pipeline] answer attempt ${attempt}/${MAX_ANSWER_ATTEMPTS}` });
+
+          // Before each retry, tell the client to clear its partial answer buffer.
+          if (attempt > 1) {
+            send('reset', { stage: 'answer' });
+          }
+
+          try {
+            const result = await nvidiaChatStreamControlled({
+              messages,
+              temperature: 0.4,
+              maxTokens: ANSWER_MAX_TOKENS,
+              // timeoutMs defaults to 25s in nvidia.ts — well under Vercel's 30s Edge cap
+              onLog: (line) => send('log', { line }),
+              onChunk: (text) => send('chunk', { text }),
+            });
+
+            send('stage-end', {
+              stage: 'answer',
+              ok: true,
+              elapsedMs: result.elapsedMs,
+              summary: `${result.content.length} chars in ${result.attempts} attempt(s)`,
+            });
+            answerOk = true;
+            break;
+          } catch (err: any) {
+            lastErr = err?.message || 'unknown';
+            send('log', { line: `[nvidia] attempt ${attempt} failed: ${lastErr.slice(0, 150)}` });
+
+            if (attempt < MAX_ANSWER_ATTEMPTS) {
+              // Exponential backoff: 1s, 2s, 3s
+              const backoff = 1000 * attempt;
+              send('log', { line: `[pipeline] backing off ${backoff}ms before retry` });
+              await new Promise((r) => setTimeout(r, backoff));
+            }
+          }
+        }
+
+        if (!answerOk) {
+          send('stage-end', { stage: 'answer', ok: false, elapsedMs: Date.now() - pipelineStart, summary: `failed after ${MAX_ANSWER_ATTEMPTS} attempts` });
+          send('error', { message: `NVIDIA call failed after ${MAX_ANSWER_ATTEMPTS} attempts: ${lastErr}` });
           send('pipeline-end', { ok: false });
           controller.close();
           return;

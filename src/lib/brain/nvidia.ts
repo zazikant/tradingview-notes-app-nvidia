@@ -26,12 +26,16 @@
  *   - Legacy non-streaming path: 3 retries, 15s delay between attempts
  *   - Controlled streaming path: 1 attempt per call (pipeline-level retry
  *     handles additional attempts), exponential backoff (500ms × attempt)
- *   - Per-call timeout: 120s (proven reliable for gpt-oss on Vercel)
+ *   - Per-call timeout: 25s (under Vercel Hobby's 30s Edge cap)
  */
 
 const NVIDIA_GATEWAY = 'https://integrate.api.nvidia.com/v1/chat/completions';
 const NVIDIA_DEFAULT_MODEL = 'openai/gpt-oss-20b';
-const NVIDIA_DEFAULT_TIMEOUT_MS = 120_000;
+// 25s per-call timeout — under Vercel Hobby's 30s Edge runtime cap.
+// The previous 120s was fine on Node runtime but Vercel Hobby kills Node
+// functions at 60s and Edge at 30s, so 120s was never actually reachable.
+// 25s gives a 5s safety margin for stream setup + final chunk flushing.
+const NVIDIA_DEFAULT_TIMEOUT_MS = 25_000;
 
 export interface ControlledStreamOptions {
   model?: string;

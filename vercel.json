@@ -1,0 +1,22 @@
+{
+  "functions": {
+    "src/app/api/brain/chat/route.ts": {
+      "maxDuration": 30
+    },
+    "src/app/api/brain/translate/route.ts": {
+      "maxDuration": 30
+    },
+    "src/app/api/brain/sync/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/brain/upload/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/brain/documents/route.ts": {
+      "maxDuration": 30
+    },
+    "src/app/api/brain/resync-all/route.ts": {
+      "maxDuration": 60
+    }
+  }
+}
