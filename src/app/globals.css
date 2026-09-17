@@ -1379,6 +1379,7 @@ body {
 /* Individual chat message */
 .brain-msg {
   display: flex;
+  flex-wrap: wrap;        /* allows sources to wrap below the bubble */
   gap: 10px;
   margin-bottom: 1.5rem;
   align-items: flex-start;
@@ -1445,6 +1446,11 @@ body {
   gap: 6px;
   align-items: center;
   max-width: 78%;
+  flex-basis: 100%;       /* forces sources onto a new line below the bubble */
+}
+/* For user messages (row-reverse), sources align right to match the bubble */
+.brain-msg.user .brain-sources {
+  justify-content: flex-end;
 }
 .brain-sources-label {
   font-family: var(--font-syne), 'Syne', sans-serif;
@@ -1687,8 +1693,12 @@ body {
   .brain-input-wrap { padding: 0.5rem 1rem 0.75rem; }
   .brain-log { margin: 0 1rem 0.5rem; }
   .brain-docs-rail { width: 240px; }
-  .brain-msg-bubble { max-width: 88%; }
-  .brain-sources { max-width: 88%; }
+  /* On mobile: bubble gets 85% width, sources get full 100% so they
+     wrap beneath the bubble (not beside it). This fixes the issue where
+     the chat output was taking half the screen and sources the other half. */
+  .brain-msg-bubble { max-width: 85%; }
+  .brain-msg-content-wrap { max-width: 85%; }
+  .brain-sources { max-width: 100%; flex-basis: 100%; }
 }
 
 /* ─── Upload UI (added in v2 for PDF support) ─── */
