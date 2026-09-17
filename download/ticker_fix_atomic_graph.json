@@ -1,0 +1,231 @@
+{
+  "nodes": [
+    {
+      "id": "c1",
+      "title": "Ticker uses input",
+      "summary": "The ticker field is built with an HTML <input>, which inherently limits content to a single line.",
+      "tags": [
+        "frontend",
+        "ui"
+      ]
+    },
+    {
+      "id": "c2",
+      "title": "No spaces allowed",
+      "summary": "Because of the <input> element and trimming logic, users cannot type spaces or newlines in the ticker.",
+      "tags": [
+        "usability",
+        "validation"
+      ]
+    },
+    {
+      "id": "c3",
+      "title": "Auto‑uppercase on change",
+      "summary": "Every keystroke is transformed to uppercase via e.target.value.toUpperCase(), which is unnecessary for multiline text.",
+      "tags": [
+        "logic",
+        "formatting"
+      ]
+    },
+    {
+      "id": "c4",
+      "title": "Keydown stops propagation",
+      "summary": "The onKeyDown handler calls e.stopPropagation() but does not affect the single‑line restriction.",
+      "tags": [
+        "event",
+        "frontend"
+      ]
+    },
+    {
+      "id": "c5",
+      "title": "Global shortcuts conflict",
+      "summary": "Page‑level Ctrl+S, Ctrl+N, Escape handlers may capture keystrokes intended for the ticker field.",
+      "tags": [
+        "keyboard",
+        "interaction"
+      ]
+    },
+    {
+      "id": "c6",
+      "title": "Trim removes spaces",
+      "summary": "updateCurrentNote applies .trim() to the ticker, stripping intentional leading or trailing spaces.",
+      "tags": [
+        "logic",
+        "data"
+      ]
+    },
+    {
+      "id": "c7",
+      "title": "CSV assumes single line",
+      "summary": "Export and import functions treat ticker as a single line and do not quote it, breaking multiline values.",
+      "tags": [
+        "csv",
+        "persistence"
+      ]
+    },
+    {
+      "id": "c8",
+      "title": "CSS targets input",
+      "summary": "The .editor-ticker-input style is written for an <input>, not a <textarea>, preventing proper display of multiline content.",
+      "tags": [
+        "css",
+        "layout"
+      ]
+    },
+    {
+      "id": "c9",
+      "title": "NoteCard single line display",
+      "summary": "NotesPanel.tsx renders ticker in a single‑line element, which must be updated to support line breaks.",
+      "tags": [
+        "frontend",
+        "display"
+      ]
+    },
+    {
+      "id": "c10",
+      "title": "Supabase stores raw ticker",
+      "summary": "Backend storage accepts the ticker as‑is, so no server‑side constraints exist.",
+      "tags": [
+        "backend",
+        "storage"
+      ]
+    },
+    {
+      "id": "c11",
+      "title": "Replace input with textarea",
+      "summary": "Switching to <textarea> enables multiline entry and, with rows=1 plus auto‑grow, retains a compact UI.",
+      "tags": [
+        "ui",
+        "upgrade"
+      ]
+    },
+    {
+      "id": "c12",
+      "title": "Remove uppercase conversion",
+      "summary": "Eliminating the automatic .toUpperCase() preserves the original casing, which is appropriate for multiline tickers.",
+      "tags": [
+        "logic",
+        "formatting"
+      ]
+    },
+    {
+      "id": "c13",
+      "title": "Keep spaces in updates",
+      "summary": "Deleting .trim() from updateCurrentNote allows intentional spaces to remain in the ticker value.",
+      "tags": [
+        "logic",
+        "data"
+      ]
+    },
+    {
+      "id": "c14",
+      "title": "Quote multiline ticker in CSV",
+      "summary": "Export and import routines must wrap ticker fields in quotes to safely handle embedded newlines.",
+      "tags": [
+        "csv",
+        "compatibility"
+      ]
+    },
+    {
+      "id": "c15",
+      "title": "Break circular dependencies",
+      "summary": "Removing the input‑based, uppercase‑, and trim‑enforced assumptions eliminates the feedback loop that blocked multiline tickers.",
+      "tags": [
+        "dependency",
+        "refactor"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "source": "c6",
+      "target": "c2",
+      "label": "enables",
+      "strength": 0.9
+    },
+    {
+      "source": "c2",
+      "target": "c13",
+      "label": "blocks",
+      "strength": 0.8
+    },
+    {
+      "source": "c12",
+      "target": "c3",
+      "label": "blocks",
+      "strength": 0.9
+    },
+    {
+      "source": "c4",
+      "target": "c5",
+      "label": "blocks",
+      "strength": 0.8
+    },
+    {
+      "source": "c8",
+      "target": "c1",
+      "label": "modifies",
+      "strength": 0.8
+    },
+    {
+      "source": "c6",
+      "target": "c1",
+      "label": "modifies",
+      "strength": 0.8
+    },
+    {
+      "source": "c11",
+      "target": "c1",
+      "label": "modifies",
+      "strength": 0.7
+    },
+    {
+      "source": "c11",
+      "target": "c14",
+      "label": "enables",
+      "strength": 0.8
+    },
+    {
+      "source": "c14",
+      "target": "c7",
+      "label": "enables",
+      "strength": 0.9
+    },
+    {
+      "source": "c9",
+      "target": "c7",
+      "label": "requires",
+      "strength": 0.7
+    },
+    {
+      "source": "c10",
+      "target": "c13",
+      "label": "enables",
+      "strength": 0.8
+    },
+    {
+      "source": "c15",
+      "target": "c11",
+      "label": "enables",
+      "strength": 0.7
+    },
+    {
+      "source": "c1",
+      "target": "c2",
+      "label": "requires",
+      "strength": 0.7
+    },
+    {
+      "source": "c1",
+      "target": "c3",
+      "label": "requires",
+      "strength": 0.5
+    },
+    {
+      "source": "c1",
+      "target": "c4",
+      "label": "requires",
+      "strength": 0.4
+    }
+  ]
+}

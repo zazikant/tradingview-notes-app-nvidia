@@ -1,0 +1,274 @@
+{
+  "edges": [
+    {
+      "source": "c1",
+      "target": "c2",
+      "label": "requires",
+      "strength": 0.95
+    },
+    {
+      "source": "c2",
+      "target": "c22",
+      "label": "enables",
+      "strength": 0.94
+    },
+    {
+      "source": "c2",
+      "target": "c17",
+      "label": "enables",
+      "strength": 0.92
+    },
+    {
+      "source": "c3",
+      "target": "c6",
+      "label": "enables",
+      "strength": 0.96
+    },
+    {
+      "source": "c3",
+      "target": "c7",
+      "label": "enables",
+      "strength": 0.96
+    },
+    {
+      "source": "c3",
+      "target": "c27",
+      "label": "enables",
+      "strength": 0.93
+    },
+    {
+      "source": "c4",
+      "target": "c35",
+      "label": "enables",
+      "strength": 0.92
+    },
+    {
+      "source": "c5",
+      "target": "c36",
+      "label": "enables",
+      "strength": 0.94
+    },
+    {
+      "source": "c8",
+      "target": "c36",
+      "label": "enables",
+      "strength": 0.91
+    },
+    {
+      "source": "c6",
+      "target": "c12",
+      "label": "requires",
+      "strength": 0.94
+    },
+    {
+      "source": "c7",
+      "target": "c12",
+      "label": "requires",
+      "strength": 0.94
+    },
+    {
+      "source": "c13",
+      "target": "c12",
+      "label": "feeds into",
+      "strength": 0.88
+    },
+    {
+      "source": "c37",
+      "target": "c13",
+      "label": "enables",
+      "strength": 0.9
+    },
+    {
+      "source": "c10",
+      "target": "c11",
+      "label": "requires",
+      "strength": 0.95
+    },
+    {
+      "source": "c11",
+      "target": "c22",
+      "label": "feeds into",
+      "strength": 0.88
+    },
+    {
+      "source": "c22",
+      "target": "c3",
+      "label": "requires",
+      "strength": 0.9
+    },
+    {
+      "source": "c22",
+      "target": "c4",
+      "label": "requires",
+      "strength": 0.85
+    },
+    {
+      "source": "c22",
+      "target": "c27",
+      "label": "requires",
+      "strength": 0.88
+    },
+    {
+      "source": "c22",
+      "target": "c18",
+      "label": "enables",
+      "strength": 0.87
+    },
+    {
+      "source": "c18",
+      "target": "c40",
+      "label": "enables",
+      "strength": 0.92
+    },
+    {
+      "source": "c17",
+      "target": "c18",
+      "label": "enables",
+      "strength": 0.85
+    },
+    {
+      "source": "c20",
+      "target": "c30",
+      "label": "requires",
+      "strength": 0.93
+    },
+    {
+      "source": "c20",
+      "target": "c21",
+      "label": "feeds into",
+      "strength": 0.8
+    },
+    {
+      "source": "c21",
+      "target": "c43",
+      "label": "enables",
+      "strength": 0.94
+    },
+    {
+      "source": "c31",
+      "target": "c33",
+      "label": "requires",
+      "strength": 0.9
+    },
+    {
+      "source": "c31",
+      "target": "c19",
+      "label": "requires",
+      "strength": 0.88
+    },
+    {
+      "source": "c33",
+      "target": "c34",
+      "label": "requires",
+      "strength": 0.85
+    },
+    {
+      "source": "c15",
+      "target": "c38",
+      "label": "requires",
+      "strength": 0.9
+    },
+    {
+      "source": "c14",
+      "target": "c38",
+      "label": "requires",
+      "strength": 0.88
+    },
+    {
+      "source": "c14",
+      "target": "c39",
+      "label": "requires",
+      "strength": 0.88
+    },
+    {
+      "source": "c12",
+      "target": "c39",
+      "label": "requires",
+      "strength": 0.85
+    },
+    {
+      "source": "c23",
+      "target": "c41",
+      "label": "requires",
+      "strength": 0.93
+    },
+    {
+      "source": "c23",
+      "target": "c6",
+      "label": "enables",
+      "strength": 0.9
+    },
+    {
+      "source": "c23",
+      "target": "c7",
+      "label": "enables",
+      "strength": 0.9
+    },
+    {
+      "source": "c24",
+      "target": "c7",
+      "label": "requires",
+      "strength": 0.92
+    },
+    {
+      "source": "c24",
+      "target": "c26",
+      "label": "requires",
+      "strength": 0.85
+    },
+    {
+      "source": "c25",
+      "target": "c42",
+      "label": "uses",
+      "strength": 0.9
+    },
+    {
+      "source": "c25",
+      "target": "c8",
+      "label": "uses",
+      "strength": 0.88
+    },
+    {
+      "source": "c25",
+      "target": "c37",
+      "label": "uses",
+      "strength": 0.88
+    },
+    {
+      "source": "c28",
+      "target": "c40",
+      "label": "enables",
+      "strength": 0.9
+    },
+    {
+      "source": "c29",
+      "target": "c17",
+      "label": "enables",
+      "strength": 0.8
+    },
+    {
+      "source": "c29",
+      "target": "c30",
+      "label": "enables",
+      "strength": 0.78
+    },
+    {
+      "source": "c32",
+      "target": "c16",
+      "label": "requires",
+      "strength": 0.85
+    },
+    {
+      "source": "c35",
+      "target": "c3",
+      "label": "requires",
+      "strength": 0.8
+    },
+    {
+      "source": "c35",
+      "target": "c4",
+      "label": "requires",
+      "strength": 0.9
+    }
+  ]
+}

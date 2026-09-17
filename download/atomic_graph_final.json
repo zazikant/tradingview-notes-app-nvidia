@@ -1,0 +1,678 @@
+{
+  "nodes": [
+    {
+      "id": "c1",
+      "title": "Next.js App Router",
+      "summary": "Provides file‑system based routing for the SPA, simplifying navigation and page composition.",
+      "tags": [
+        "tech",
+        "routing"
+      ]
+    },
+    {
+      "id": "c2",
+      "title": "React with TypeScript",
+      "summary": "Enables component‑based UI development with static type checking for reliability.",
+      "tags": [
+        "tech",
+        "ui"
+      ]
+    },
+    {
+      "id": "c3",
+      "title": "Supabase Cloud Persistence",
+      "summary": "Stores notes and tags in PostgreSQL and pushes realtime updates to keep clients in sync.",
+      "tags": [
+        "persistence",
+        "realtime"
+      ]
+    },
+    {
+      "id": "c4",
+      "title": "LocalStorage Fallback",
+      "summary": "Allows the app to function offline by persisting data locally when the network is unavailable.",
+      "tags": [
+        "offline",
+        "persistence"
+      ]
+    },
+    {
+      "id": "c5",
+      "title": "CSS Custom Properties",
+      "summary": "Drive theming across the app, enabling consistent colors and easy style adjustments.",
+      "tags": [
+        "ui",
+        "theming"
+      ]
+    },
+    {
+      "id": "c6",
+      "title": "Note Data Model",
+      "summary": "Captures a stock ticker, rich text body, tags, and creation timestamp for each analysis entry.",
+      "tags": [
+        "data",
+        "model"
+      ]
+    },
+    {
+      "id": "c7",
+      "title": "Tag Data Model",
+      "summary": "Defines a label with a name and a color reference, supporting categorization of notes.",
+      "tags": [
+        "data",
+        "model"
+      ]
+    },
+    {
+      "id": "c8",
+      "title": "Predefined Color Palette",
+      "summary": "Offers ten reusable color schemes to ensure visual harmony for tags and UI elements.",
+      "tags": [
+        "ui",
+        "theming"
+      ]
+    },
+    {
+      "id": "c9",
+      "title": "Default Analysis Tags",
+      "summary": "Provides common categories (Bullish, Bearish, etc.) to bootstrap user workflow.",
+      "tags": [
+        "ui",
+        "tags"
+      ]
+    },
+    {
+      "id": "c10",
+      "title": "Central AppContext",
+      "summary": "Holds global state via React Context and a reducer, avoiding prop‑drilling.",
+      "tags": [
+        "state",
+        "architecture"
+      ]
+    },
+    {
+      "id": "c11",
+      "title": "Reducer Action Types",
+      "summary": "Sixteen verbs (e.g., ADD_NOTE, SET_FILTER) describe every possible state transition.",
+      "tags": [
+        "state"
+      ]
+    },
+    {
+      "id": "c12",
+      "title": "Filtered Notes Logic",
+      "summary": "Combines date, tag, search, and sort criteria to produce the visible note list.",
+      "tags": [
+        "logic",
+        "filter"
+      ]
+    },
+    {
+      "id": "c13",
+      "title": "Date‑Range Counter",
+      "summary": "Calculates how many notes fall within a specific temporal window for UI badges.",
+      "tags": [
+        "logic",
+        "stats"
+      ]
+    },
+    {
+      "id": "c14",
+      "title": "Topbar Controls",
+      "summary": "Offers quick access to search, new note creation, CSV import/export, and mobile navigation.",
+      "tags": [
+        "ui",
+        "navigation"
+      ]
+    },
+    {
+      "id": "c15",
+      "title": "Sidebar Filters",
+      "summary": "Lets users narrow notes by predefined or custom date ranges and by tag selection.",
+      "tags": [
+        "ui",
+        "filter"
+      ]
+    },
+    {
+      "id": "c16",
+      "title": "Notes Panel Pagination",
+      "summary": "Displays notes in pages of twenty, loading more via infinite scroll for performance.",
+      "tags": [
+        "ui",
+        "performance"
+      ]
+    },
+    {
+      "id": "c17",
+      "title": "Rich Text Editor",
+      "summary": "Supports ticker auto‑uppercase, bold, numbered lists, and tag toggles for detailed analysis.",
+      "tags": [
+        "ui",
+        "editor"
+      ]
+    },
+    {
+      "id": "c18",
+      "title": "Debounced Auto‑Save",
+      "summary": "Saves changes after 600 ms of inactivity, reducing write load while protecting work.",
+      "tags": [
+        "performance",
+        "data"
+      ]
+    },
+    {
+      "id": "c19",
+      "title": "Mobile Editor Footer",
+      "summary": "Shows word count and provides copy, delete, and save actions optimized for touch.",
+      "tags": [
+        "mobile",
+        "ui"
+      ]
+    },
+    {
+      "id": "c20",
+      "title": "Confirmation Modals",
+      "summary": "Prompt users before destructive actions and allow tag renaming with a color picker.",
+      "tags": [
+        "ui",
+        "accessibility"
+      ]
+    },
+    {
+      "id": "c21",
+      "title": "Global Toast System",
+      "summary": "Delivers transient feedback (success, error) to inform users of operation outcomes.",
+      "tags": [
+        "ui",
+        "feedback"
+      ]
+    },
+    {
+      "id": "c22",
+      "title": "useNotes Hook",
+      "summary": "Encapsulates context access and all CRUD, CSV, and tag functions for component reuse.",
+      "tags": [
+        "logic",
+        "abstraction"
+      ]
+    },
+    {
+      "id": "c23",
+      "title": "CSV Bulk Import/Export",
+      "summary": "Enables mass note transfer while deduplicating to avoid duplicate entries.",
+      "tags": [
+        "data",
+        "interop"
+      ]
+    },
+    {
+      "id": "c24",
+      "title": "Tag Management API",
+      "summary": "Provides add, update, and delete operations to keep the tag taxonomy current.",
+      "tags": [
+        "data",
+        "ui"
+      ]
+    },
+    {
+      "id": "c25",
+      "title": "Seed Data Initialization",
+      "summary": "Populates five example notes on first launch to demonstrate functionality.",
+      "tags": [
+        "data",
+        "bootstrap"
+      ]
+    },
+    {
+      "id": "c26",
+      "title": "Client‑Side IDs",
+      "summary": "Generate unique identifiers locally, decoupling from server‑assigned keys.",
+      "tags": [
+        "data",
+        "ids"
+      ]
+    },
+    {
+      "id": "c27",
+      "title": "Realtime Subscription Channel",
+      "summary": "Listens to postgres_changes, automatically updating UI when remote data mutates.",
+      "tags": [
+        "realtime",
+        "sync"
+      ]
+    },
+    {
+      "id": "c28",
+      "title": "Utility Functions Suite",
+      "summary": "Includes uid, relative/full date formatters, CSV parsers, and HTML escapers for common tasks.",
+      "tags": [
+        "utils"
+      ]
+    },
+    {
+      "id": "c29",
+      "title": "Keyboard Shortcuts",
+      "summary": "Ctrl+S/N/B/L accelerate note creation, saving, and formatting for power users.",
+      "tags": [
+        "accessibility",
+        "productivity"
+      ]
+    },
+    {
+      "id": "c30",
+      "title": "Escape Closes Modals",
+      "summary": "Provides a universal way to dismiss dialogs, improving keyboard navigation.",
+      "tags": [
+        "accessibility"
+      ]
+    },
+    {
+      "id": "c31",
+      "title": "Three‑Panel Mobile Layout",
+      "summary": "Stacks sidebar, notes list, and editor with slide transitions for intuitive navigation on small screens.",
+      "tags": [
+        "mobile",
+        "layout"
+      ]
+    },
+    {
+      "id": "c32",
+      "title": "Data‑Panel Attribute",
+      "summary": "Controls which panel is visible, driving the slide‑in UI behavior.",
+      "tags": [
+        "ui",
+        "state"
+      ]
+    },
+    {
+      "id": "c33",
+      "title": "Bottom Navigation Bar",
+      "summary": "Offers quick tabs to switch between filters, notes, and editor on mobile devices.",
+      "tags": [
+        "mobile",
+        "navigation"
+      ]
+    },
+    {
+      "id": "c34",
+      "title": "Touch‑Optimized Targets",
+      "summary": "Ensures interactive elements are large enough for reliable finger taps.",
+      "tags": [
+        "mobile",
+        "usability"
+      ]
+    },
+    {
+      "id": "c35",
+      "title": "Offline‑First Design",
+      "summary": "Combines LocalStorage fallback with realtime sync to keep the app usable without network.",
+      "tags": [
+        "offline",
+        "architecture"
+      ]
+    },
+    {
+      "id": "c36",
+      "title": "Consistent Theming via CSS Variables",
+      "summary": "Allows dynamic color changes without rewriting component styles, maintaining visual coherence.",
+      "tags": [
+        "ui",
+        "theming"
+      ]
+    },
+    {
+      "id": "c37",
+      "title": "Predefined Date Ranges",
+      "summary": "Users can filter notes by common intervals (today, week, month, etc.) for quick temporal analysis.",
+      "tags": [
+        "filter",
+        "date"
+      ]
+    },
+    {
+      "id": "c38",
+      "title": "Toggleable Tag Filters",
+      "summary": "Enables inclusion or exclusion of notes by tag, supporting focused review sessions.",
+      "tags": [
+        "filter",
+        "tags"
+      ]
+    },
+    {
+      "id": "c39",
+      "title": "Multiple Sort Modes",
+      "summary": "Allows ordering notes by recency or ticker alphabetically, catering to different workflows.",
+      "tags": [
+        "ui",
+        "sort"
+      ]
+    },
+    {
+      "id": "c40",
+      "title": "Debounce Reduces Writes",
+      "summary": "The 600 ms delay prevents excessive database calls during rapid typing.",
+      "tags": [
+        "performance"
+      ]
+    },
+    {
+      "id": "c41",
+      "title": "CSV Deduplication Logic",
+      "summary": "Ensures imported notes do not duplicate existing entries, preserving data integrity.",
+      "tags": [
+        "data",
+        "import"
+      ]
+    },
+    {
+      "id": "c42",
+      "title": "Example Seed Tickers",
+      "summary": "Uses popular symbols (AAPL, TSLA, etc.) to illustrate note capabilities for new users.",
+      "tags": [
+        "bootstrap"
+      ]
+    },
+    {
+      "id": "c43",
+      "title": "Toast Feedback Importance",
+      "summary": "Immediate notifications confirm actions, reducing user uncertainty.",
+      "tags": [
+        "feedback"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "source": "c1",
+      "target": "c2",
+      "label": "requires",
+      "strength": 0.95
+    },
+    {
+      "source": "c2",
+      "target": "c22",
+      "label": "enables",
+      "strength": 0.94
+    },
+    {
+      "source": "c2",
+      "target": "c17",
+      "label": "enables",
+      "strength": 0.92
+    },
+    {
+      "source": "c3",
+      "target": "c6",
+      "label": "enables",
+      "strength": 0.96
+    },
+    {
+      "source": "c3",
+      "target": "c7",
+      "label": "enables",
+      "strength": 0.96
+    },
+    {
+      "source": "c3",
+      "target": "c27",
+      "label": "enables",
+      "strength": 0.93
+    },
+    {
+      "source": "c4",
+      "target": "c35",
+      "label": "enables",
+      "strength": 0.92
+    },
+    {
+      "source": "c5",
+      "target": "c36",
+      "label": "enables",
+      "strength": 0.94
+    },
+    {
+      "source": "c8",
+      "target": "c36",
+      "label": "enables",
+      "strength": 0.91
+    },
+    {
+      "source": "c6",
+      "target": "c12",
+      "label": "requires",
+      "strength": 0.94
+    },
+    {
+      "source": "c7",
+      "target": "c12",
+      "label": "requires",
+      "strength": 0.94
+    },
+    {
+      "source": "c13",
+      "target": "c12",
+      "label": "feeds into",
+      "strength": 0.88
+    },
+    {
+      "source": "c37",
+      "target": "c13",
+      "label": "enables",
+      "strength": 0.9
+    },
+    {
+      "source": "c10",
+      "target": "c11",
+      "label": "requires",
+      "strength": 0.95
+    },
+    {
+      "source": "c11",
+      "target": "c22",
+      "label": "feeds into",
+      "strength": 0.88
+    },
+    {
+      "source": "c22",
+      "target": "c3",
+      "label": "requires",
+      "strength": 0.9
+    },
+    {
+      "source": "c22",
+      "target": "c4",
+      "label": "requires",
+      "strength": 0.85
+    },
+    {
+      "source": "c22",
+      "target": "c27",
+      "label": "requires",
+      "strength": 0.88
+    },
+    {
+      "source": "c22",
+      "target": "c18",
+      "label": "enables",
+      "strength": 0.87
+    },
+    {
+      "source": "c18",
+      "target": "c40",
+      "label": "enables",
+      "strength": 0.92
+    },
+    {
+      "source": "c17",
+      "target": "c18",
+      "label": "enables",
+      "strength": 0.85
+    },
+    {
+      "source": "c20",
+      "target": "c30",
+      "label": "requires",
+      "strength": 0.93
+    },
+    {
+      "source": "c20",
+      "target": "c21",
+      "label": "feeds into",
+      "strength": 0.8
+    },
+    {
+      "source": "c21",
+      "target": "c43",
+      "label": "enables",
+      "strength": 0.94
+    },
+    {
+      "source": "c31",
+      "target": "c33",
+      "label": "requires",
+      "strength": 0.9
+    },
+    {
+      "source": "c31",
+      "target": "c19",
+      "label": "requires",
+      "strength": 0.88
+    },
+    {
+      "source": "c33",
+      "target": "c34",
+      "label": "requires",
+      "strength": 0.85
+    },
+    {
+      "source": "c15",
+      "target": "c38",
+      "label": "requires",
+      "strength": 0.9
+    },
+    {
+      "source": "c14",
+      "target": "c38",
+      "label": "requires",
+      "strength": 0.88
+    },
+    {
+      "source": "c14",
+      "target": "c39",
+      "label": "requires",
+      "strength": 0.88
+    },
+    {
+      "source": "c12",
+      "target": "c39",
+      "label": "requires",
+      "strength": 0.85
+    },
+    {
+      "source": "c23",
+      "target": "c41",
+      "label": "requires",
+      "strength": 0.93
+    },
+    {
+      "source": "c23",
+      "target": "c6",
+      "label": "enables",
+      "strength": 0.9
+    },
+    {
+      "source": "c23",
+      "target": "c7",
+      "label": "enables",
+      "strength": 0.9
+    },
+    {
+      "source": "c24",
+      "target": "c7",
+      "label": "requires",
+      "strength": 0.92
+    },
+    {
+      "source": "c24",
+      "target": "c26",
+      "label": "requires",
+      "strength": 0.85
+    },
+    {
+      "source": "c25",
+      "target": "c42",
+      "label": "uses",
+      "strength": 0.9
+    },
+    {
+      "source": "c25",
+      "target": "c8",
+      "label": "uses",
+      "strength": 0.88
+    },
+    {
+      "source": "c25",
+      "target": "c37",
+      "label": "uses",
+      "strength": 0.88
+    },
+    {
+      "source": "c28",
+      "target": "c40",
+      "label": "enables",
+      "strength": 0.9
+    },
+    {
+      "source": "c29",
+      "target": "c17",
+      "label": "enables",
+      "strength": 0.8
+    },
+    {
+      "source": "c29",
+      "target": "c30",
+      "label": "enables",
+      "strength": 0.78
+    },
+    {
+      "source": "c32",
+      "target": "c16",
+      "label": "requires",
+      "strength": 0.85
+    },
+    {
+      "source": "c35",
+      "target": "c3",
+      "label": "requires",
+      "strength": 0.8
+    },
+    {
+      "source": "c35",
+      "target": "c4",
+      "label": "requires",
+      "strength": 0.9
+    }
+  ],
+  "validation": {
+    "score": 0.82,
+    "issues": [
+      "Missing explicit nodes for TypeScript, Next.js App Router specifics, and the seed_status table used in persistence",
+      "CSV import/export functionality is only represented abstractly; details like deduplication and bulk operations are not captured",
+      "Pagination and infinite scroll behavior of NotesPanel are omitted",
+      "Client‑side ID generation (client_id) and its role as primary key are not represented",
+      "Keyboard shortcut list is generic; specific mappings (Ctrl+S, Ctrl+N, etc.) are absent",
+      "Edge labels are overly generic (e.g., “requires”, “enables”) and do not convey precise relationships such as “stores”, “triggers”, “updates UI”",
+      "Some component nodes (Topbar, Sidebar, Modals, Toast) lack connections to the state/actions they invoke"
+    ],
+    "suggestions": [
+      "Add nodes for \"TypeScript\" and \"Next.js App Router\" with tags reflecting language and routing",
+      "Create a node for the \"seed_status\" table and link it to the seed initialization process",
+      "Introduce nodes for \"NotesPanel Pagination\" and \"Infinite Scroll\" and connect them to the UI layer",
+      "Add a node for \"Client‑side IDs (client_id)\" and show its relationship to data model and Supabase persistence",
+      "Detail a \"Keyboard Shortcuts\" node listing each shortcut and link it to the Editor or global handlers",
+      "Refine edge labels to be specific verbs like \"stores\", \"triggers\", \"updates\", \"provides\", \"uses\" for clearer semantics",
+      "Connect UI component nodes (Topbar, Sidebar, Modals, Toast) to the corresponding reducer actions they dispatch (e.g., ADD_NOTE, DELETE_NOTE)"
+    ]
+  }
+}
