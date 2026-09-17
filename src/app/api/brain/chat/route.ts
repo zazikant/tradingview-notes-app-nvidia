@@ -7,17 +7,21 @@ import {
 } from '@/lib/brain/pinecone-edge';  // Edge-compatible (no Pinecone SDK)
 import { nvidiaChatStreamControlled } from '@/lib/brain/nvidia';
 
-// Edge runtime — Vercel Hobby caps Edge at 30s (vs 60s for Node).
-// We use Edge because:
-//   1. SSE streaming works more reliably on Edge (no Node buffer layer)
-//   2. 30s cap forces us to keep LLM calls short (25s timeout in nvidia.ts)
-//   3. Cold starts are near-zero on Edge
-// The Pinecone SDK uses node:stream so we use pinecone-edge.ts (raw REST).
-export const runtime = 'edge';
-export const maxDuration = 30;  // Vercel Hobby Edge cap
+// Node runtime — Vercel Hobby caps Node at 60s (vs 30s for Edge).
+// We need Node because:
+//   1. Muse Glimmer 30B needs 30-45s to produce a FINISHED answer (not just
+//      reasoning). The 30s Edge cap was too tight — the model would get
+//      killed mid-answer, producing incomplete/cut-off output.
+//   2. The Pinecone SDK (used by pinecone-edge.ts for search) works on both
+//      runtimes, but Node gives us more time for the full pipeline.
+// The pinecone-edge.ts module uses raw REST API (no SDK) so it's compatible.
+export const runtime = 'nodejs';
+export const maxDuration = 60;  // Vercel Hobby Node cap
 
 // Pipeline-level retry — if the first attempt times out or aborts mid-stream,
-// retry up to 3 times with backoff. Each attempt gets a fresh 25s budget.
+// retry up to 3 times with backoff. Each attempt gets a fresh 55s budget
+// (under Vercel Hobby's 60s Node cap). In practice, attempt 1 usually
+// succeeds because 55s is enough for Muse Glimmer 30B to finish.
 const MAX_ANSWER_ATTEMPTS = 3;
 // No explicit maxTokens/temperature/topP overrides here — let nvidia.ts use
 // the model-specific defaults (Muse Glimmer 30B: temp=1.0, top_p=0.95,
@@ -107,18 +111,20 @@ export async function POST(req: NextRequest) {
         }));
         send('sources', { sources });
 
-        const context = buildContextFromAggregated(aggregated, 2000);  // smaller context = faster TTFB on Muse Glimmer 30B
+        const context = buildContextFromAggregated(aggregated, 4000);
         send('stage-end', { stage: 'search', ok: true, elapsedMs: Date.now() - pipelineStart, summary: `${hits.length} chunks in ${aggregated.length} notes` });
 
         // ── Stage 2: stream the answer via NVIDIA (with pipeline retry) ───
         send('stage-start', { stage: 'answer' });
 
         const systemPrompt = context
-          ? `You are a thoughtful research assistant. Use ONLY the context below to answer the user's question. Cite the note filename(s) you used at the end of your answer as "Sources: <filenames>". If the answer is not in the context, say so — do not invent facts.
+          ? `You are a helpful research assistant. Use ONLY the context below to answer the user's question. Cite the note filename(s) you used at the end of your answer as "Sources: <filenames>". If the answer is not in the context, say so — do not invent facts.
+
+Be concise and direct. Do not show your reasoning process — just give the finished answer.
 
 Context (synced notes):
 ${context}`
-          : `You are a helpful assistant. No notes have been synced to the Brain yet, OR none of the synced notes matched the question. Answer the user's question from general knowledge, and gently suggest they sync some notes first for better-grounded answers.`;
+          : `You are a helpful assistant. No notes have been synced to the Brain yet, OR none of the synced notes matched the question. Answer the user's question from general knowledge. Be concise and direct — do not show your reasoning process.`;
 
         const messages: { role: 'system' | 'user' | 'assistant'; content: string }[] = [
           { role: 'system', content: systemPrompt },

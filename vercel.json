@@ -1,7 +1,7 @@
 {
   "functions": {
     "src/app/api/brain/chat/route.ts": {
-      "maxDuration": 30
+      "maxDuration": 60
     },
     "src/app/api/brain/translate/route.ts": {
       "maxDuration": 30

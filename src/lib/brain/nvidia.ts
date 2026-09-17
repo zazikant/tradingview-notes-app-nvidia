@@ -38,11 +38,11 @@ const NVIDIA_GATEWAY = 'https://integrate.api.nvidia.com/v1/chat/completions';
 const NVIDIA_DEFAULT_MODEL = 'meta/muse-glimmer-30b';
 const NVIDIA_DEFAULT_TEMPERATURE = 1.0;
 const NVIDIA_DEFAULT_TOP_P = 0.95;
-const NVIDIA_DEFAULT_MAX_TOKENS = 2048;  // 8192 takes 29s+ on Muse Glimmer 30B (exceeds 25s timeout). 2048 completes in ~8s.
-// 28s per-call timeout — under Vercel Hobby's 30s Edge runtime cap.
-// Muse Glimmer 30B with realistic RAG context takes 18-24s streaming.
-// 28s gives a 2s safety margin for stream setup + final chunk flushing.
-const NVIDIA_DEFAULT_TIMEOUT_MS = 28_000;
+const NVIDIA_DEFAULT_MAX_TOKENS = 3072;  // Enough for reasoning + finished answer. 2048 = cut off mid-sentence. 4096+ = 47-60s (exceeds 55s timeout). 3072 completes in 30-40s.
+// 55s per-call timeout — under Vercel Hobby's 60s Node runtime cap.
+// Muse Glimmer 30B with 6142 max_tokens + RAG context takes 30-45s.
+// 55s gives a 5s safety margin for stream setup + final chunk flushing.
+const NVIDIA_DEFAULT_TIMEOUT_MS = 55_000;
 
 export interface ControlledStreamOptions {
   model?: string;
@@ -181,11 +181,14 @@ export async function nvidiaChatStreamControlled(
               `[nvidia] ttfb=${ttfbMs ?? 'n/a'}ms  done attempt=${attempt} elapsed=${elapsed}ms content_chars=${content.length} reasoning_chars=${reasoning.length}`,
             );
             if (!content && reasoning) {
-              // Model only returned reasoning (e.g. Muse Glimmer 30B with
-              // small max_tokens). We've already streamed it live above, so
-              // just set content = reasoning for the return value — don't
-              // re-stream (would duplicate).
+              // Model only returned reasoning (no finished content). This
+              // happens when max_tokens is too small — the model spent its
+              // entire budget on chain-of-thought and never produced the
+              // final answer. Fall back to using reasoning as content so the
+              // user sees something, but this is a degraded experience.
+              // The real fix is large enough max_tokens (see NVIDIA_DEFAULT_MAX_TOKENS).
               content = reasoning;
+              opts.onChunk?.(content);
             }
             if (!content) {
               throw new Error(
@@ -202,16 +205,14 @@ export async function nvidiaChatStreamControlled(
                 content += delta.content;
                 opts.onChunk?.(delta.content);
               }
-              if (typeof delta.reasoning_content === 'string' && delta.reasoning_content) {
+              // Accumulate reasoning_content but do NOT stream it to the user.
+              // Reasoning is the model's internal scratchpad (chain-of-thought,
+              // self-debate, uncertainty hedging) — it should never be shown.
+              // The user only sees the finished `content` (the actual answer).
+              // If the model only produces reasoning (no content), we fall back
+              // to using it AFTER the stream completes (see [DONE] handler below).
+              if (typeof delta.reasoning_content === 'string') {
                 reasoning += delta.reasoning_content;
-                // For models like Muse Glimmer 30B that produce output as
-                // reasoning_content (not content), stream it to the user live
-                // so they see progress instead of a blank bubble. Once actual
-                // content starts arriving, it takes over and we stop streaming
-                // reasoning (to avoid duplication).
-                if (!content) {
-                  opts.onChunk?.(delta.reasoning_content);
-                }
               }
             }
           } catch {
@@ -222,8 +223,9 @@ export async function nvidiaChatStreamControlled(
 
       const elapsed = Date.now() - callStart;
       if (!content && reasoning) {
-        // Already streamed reasoning live above — just set for return value.
+        // Fallback: model only produced reasoning. Stream it as content.
         content = reasoning;
+        opts.onChunk?.(content);
       }
       if (!content) {
         throw new Error(
