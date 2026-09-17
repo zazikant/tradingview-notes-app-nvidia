@@ -19,11 +19,9 @@ export const maxDuration = 30;  // Vercel Hobby Edge cap
 // Pipeline-level retry — if the first attempt times out or aborts mid-stream,
 // retry up to 3 times with backoff. Each attempt gets a fresh 25s budget.
 const MAX_ANSWER_ATTEMPTS = 3;
-// 2048 tokens — matches ax-translator's default. Keeps GPT-OSS-20B under
-// 25s reliably (TTFB ~3-5s + ~2000 tokens at ~80 tokens/s = ~28s worst case,
-// usually much faster). Larger values (4096+) can exceed the 25s timeout
-// on Vercel Hobby Edge, triggering the abort-midway bug.
-const ANSWER_MAX_TOKENS = 2048;
+// No explicit maxTokens/temperature/topP overrides here — let nvidia.ts use
+// the model-specific defaults (Muse Glimmer 30B: temp=1.0, top_p=0.95,
+// max_tokens=8192). Muse Glimmer responds in 1-4s, well under the 25s timeout.
 
 /**
  * POST /api/brain/chat — streaming RAG chat (Server-Sent Events)
@@ -109,7 +107,7 @@ export async function POST(req: NextRequest) {
         }));
         send('sources', { sources });
 
-        const context = buildContextFromAggregated(aggregated, 2000);  // smaller context = faster TTFB
+        const context = buildContextFromAggregated(aggregated, 2000);  // smaller context = faster TTFB on Muse Glimmer 30B
         send('stage-end', { stage: 'search', ok: true, elapsedMs: Date.now() - pipelineStart, summary: `${hits.length} chunks in ${aggregated.length} notes` });
 
         // ── Stage 2: stream the answer via NVIDIA (with pipeline retry) ───
@@ -143,11 +141,12 @@ ${context}`
           }
 
           try {
+            // No temperature/maxTokens/topP overrides — nvidia.ts uses
+            // Muse Glimmer 30B's recommended defaults (temp=1.0, top_p=0.95,
+            // max_tokens=8192). The model responds in 1-4s, well under the
+            // 25s timeout.
             const result = await nvidiaChatStreamControlled({
               messages,
-              temperature: 0.4,
-              maxTokens: ANSWER_MAX_TOKENS,
-              // timeoutMs defaults to 25s in nvidia.ts — well under Vercel's 30s Edge cap
               onLog: (line) => send('log', { line }),
               onChunk: (text) => send('chunk', { text }),
             });

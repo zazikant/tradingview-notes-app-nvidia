@@ -30,17 +30,25 @@
  */
 
 const NVIDIA_GATEWAY = 'https://integrate.api.nvidia.com/v1/chat/completions';
-const NVIDIA_DEFAULT_MODEL = 'openai/gpt-oss-20b';
-// 25s per-call timeout — under Vercel Hobby's 30s Edge runtime cap.
-// The previous 120s was fine on Node runtime but Vercel Hobby kills Node
-// functions at 60s and Edge at 30s, so 120s was never actually reachable.
-// 25s gives a 5s safety margin for stream setup + final chunk flushing.
-const NVIDIA_DEFAULT_TIMEOUT_MS = 25_000;
+// Default model: meta/muse-glimmer-30b
+// This is the model that all 3 API keys have access to, and it responds in
+// 1-4 seconds (vs openai/gpt-oss-20b which times out at 25s due to NVIDIA
+// capacity issues). Recommended tuning from NVIDIA's official sample:
+//   temperature=1.0, top_p=0.95, max_tokens=8192
+const NVIDIA_DEFAULT_MODEL = 'meta/muse-glimmer-30b';
+const NVIDIA_DEFAULT_TEMPERATURE = 1.0;
+const NVIDIA_DEFAULT_TOP_P = 0.95;
+const NVIDIA_DEFAULT_MAX_TOKENS = 2048;  // 8192 takes 29s+ on Muse Glimmer 30B (exceeds 25s timeout). 2048 completes in ~8s.
+// 28s per-call timeout — under Vercel Hobby's 30s Edge runtime cap.
+// Muse Glimmer 30B with realistic RAG context takes 18-24s streaming.
+// 28s gives a 2s safety margin for stream setup + final chunk flushing.
+const NVIDIA_DEFAULT_TIMEOUT_MS = 28_000;
 
 export interface ControlledStreamOptions {
   model?: string;
   messages: { role: 'system' | 'user' | 'assistant'; content: string }[];
   temperature?: number;
+  topP?: number;
   maxTokens?: number;
   timeoutMs?: number;
   maxRetries?: number;
@@ -93,6 +101,9 @@ export async function nvidiaChatStreamControlled(
   const model = opts.model || NVIDIA_DEFAULT_MODEL;
   const timeoutMs = opts.timeoutMs ?? NVIDIA_DEFAULT_TIMEOUT_MS;
   const maxRetries = opts.maxRetries ?? 1;
+  const temperature = opts.temperature ?? NVIDIA_DEFAULT_TEMPERATURE;
+  const topP = opts.topP ?? NVIDIA_DEFAULT_TOP_P;
+  const maxTokens = opts.maxTokens ?? NVIDIA_DEFAULT_MAX_TOKENS;
   const callStart = Date.now();
   const apiKey = process.env.NVIDIA_API_KEY;
 
@@ -103,7 +114,7 @@ export async function nvidiaChatStreamControlled(
   }
 
   opts.onLog?.(
-    `[nvidia] start  model=${model} max_tokens=${opts.maxTokens ?? 2048} temp=${opts.temperature ?? 0.7} timeout=${timeoutMs}ms`,
+    `[nvidia] start  model=${model} max_tokens=${maxTokens} temp=${temperature} top_p=${topP} timeout=${timeoutMs}ms`,
   );
 
   let lastErr: Error | null = null;
@@ -123,11 +134,10 @@ export async function nvidiaChatStreamControlled(
         body: JSON.stringify({
           model,
           messages: opts.messages,
-          max_tokens: opts.maxTokens ?? 2048,
-          temperature: opts.temperature ?? 0.7,
+          max_tokens: maxTokens,
+          temperature,
+          top_p: topP,
           stream: true,
-          // NOTE: no `reasoning_effort` here — NVIDIA's GPT-OSS doesn't need it.
-          // NOTE: no `x-opencode-session` header — that was OpenCode-specific.
         }),
         signal: controller.signal,
       });
@@ -171,9 +181,11 @@ export async function nvidiaChatStreamControlled(
               `[nvidia] ttfb=${ttfbMs ?? 'n/a'}ms  done attempt=${attempt} elapsed=${elapsed}ms content_chars=${content.length} reasoning_chars=${reasoning.length}`,
             );
             if (!content && reasoning) {
-              // Model misbehaved — only returned reasoning. Fall back to using it.
+              // Model only returned reasoning (e.g. Muse Glimmer 30B with
+              // small max_tokens). We've already streamed it live above, so
+              // just set content = reasoning for the return value — don't
+              // re-stream (would duplicate).
               content = reasoning;
-              opts.onChunk?.(content);
             }
             if (!content) {
               throw new Error(
@@ -190,8 +202,16 @@ export async function nvidiaChatStreamControlled(
                 content += delta.content;
                 opts.onChunk?.(delta.content);
               }
-              if (typeof delta.reasoning_content === 'string') {
+              if (typeof delta.reasoning_content === 'string' && delta.reasoning_content) {
                 reasoning += delta.reasoning_content;
+                // For models like Muse Glimmer 30B that produce output as
+                // reasoning_content (not content), stream it to the user live
+                // so they see progress instead of a blank bubble. Once actual
+                // content starts arriving, it takes over and we stop streaming
+                // reasoning (to avoid duplication).
+                if (!content) {
+                  opts.onChunk?.(delta.reasoning_content);
+                }
               }
             }
           } catch {
@@ -202,8 +222,8 @@ export async function nvidiaChatStreamControlled(
 
       const elapsed = Date.now() - callStart;
       if (!content && reasoning) {
+        // Already streamed reasoning live above — just set for return value.
         content = reasoning;
-        opts.onChunk?.(content);
       }
       if (!content) {
         throw new Error(
