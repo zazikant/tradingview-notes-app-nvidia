@@ -2148,3 +2148,65 @@ body {
     padding: 6px 8px;
   }
 }
+
+/* ─── Copy message button + content wrapper ─── */
+
+.brain-msg-content-wrap {
+  position: relative;
+  max-width: 78%;
+}
+
+.brain-msg-copy-btn {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  opacity: 0;
+  transition: all 0.15s;
+  z-index: 5;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+.brain-msg:hover .brain-msg-copy-btn {
+  opacity: 1;
+}
+.brain-msg-copy-btn:hover {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+  transform: scale(1.1);
+}
+.brain-msg-copy-btn:active {
+  transform: scale(0.95);
+}
+
+/* For user messages, the copy button sits on the left side (since bubble is right-aligned) */
+.brain-msg.user .brain-msg-copy-btn {
+  right: auto;
+  left: -8px;
+}
+
+/* The max-width is now on the content-wrap, not the bubble */
+.brain-msg .brain-msg-bubble {
+  max-width: 100%;
+}
+
+/* Mobile: always show copy button (no hover on touch devices) */
+@media (max-width: 768px) {
+  .brain-msg-copy-btn {
+    opacity: 0.7;
+  }
+  .brain-msg-content-wrap {
+    max-width: 88%;
+  }
+}

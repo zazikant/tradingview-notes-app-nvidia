@@ -447,6 +447,57 @@ export function BrainPanel({ onClose }: BrainPanelProps) {
 
   const syncedCount = docs.length;
 
+  // ─── Copy a single message to clipboard ────────────────────────────
+  const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null);
+  const handleCopyMessage = useCallback(async (msg: ChatMessage) => {
+    if (!msg.content) return;
+    try {
+      await navigator.clipboard.writeText(msg.content);
+      setCopiedMsgId(msg.id);
+      setTimeout(() => setCopiedMsgId(null), 2000);
+    } catch (err) {
+      console.error('[BrainPanel] copy failed', err);
+    }
+  }, []);
+
+  // ─── Download the entire conversation as a .txt file ───────────────
+  const handleDownloadChat = useCallback(() => {
+    if (messages.length === 0) return;
+    const lines: string[] = [];
+    lines.push('=== Chat Brain — Conversation Export ===');
+    lines.push(`Exported: ${new Date().toLocaleString()}`);
+    lines.push(`Messages: ${messages.length}`);
+    lines.push('');
+    lines.push('='.repeat(60));
+    lines.push('');
+    for (const msg of messages) {
+      const ts = new Date(msg.ts).toLocaleString();
+      const role = msg.role === 'user' ? 'You' : 'Assistant';
+      lines.push(`[${ts}] ${role}:`);
+      lines.push(msg.content || '(empty)');
+      if (msg.sources && msg.sources.length > 0) {
+        lines.push('');
+        lines.push('Sources:');
+        for (const s of msg.sources) {
+          lines.push(`  - ${s.ticker || s.filename} (score: ${s.avgScore}, chunks: ${s.chunkCount})`);
+        }
+      }
+      lines.push('');
+      lines.push('-'.repeat(60));
+      lines.push('');
+    }
+    const text = lines.join('\n');
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `chat-brain-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, [messages]);
+
   return (
     <div className="brain-overlay">
       <div className="brain-modal">
@@ -464,6 +515,15 @@ export function BrainPanel({ onClose }: BrainPanelProps) {
             </div>
           </div>
           <div className="brain-header-actions">
+            <button
+              type="button"
+              className="brain-header-btn"
+              onClick={handleDownloadChat}
+              disabled={messages.length === 0}
+              title="Download conversation as .txt"
+            >
+              ⬇
+            </button>
             <button
               type="button"
               className="brain-header-btn"
@@ -511,9 +571,22 @@ export function BrainPanel({ onClose }: BrainPanelProps) {
                     {msg.role === 'assistant' && (
                       <div className="brain-msg-avatar">🧠</div>
                     )}
-                    <div className="brain-msg-bubble">
-                      {msg.content || (msg.streaming ? '' : <em>(empty response)</em>)}
-                      {msg.streaming && <span className="brain-cursor">▍</span>}
+                    <div className="brain-msg-content-wrap">
+                      <div className="brain-msg-bubble">
+                        {msg.content || (msg.streaming ? '' : <em>(empty response)</em>)}
+                        {msg.streaming && <span className="brain-cursor">▍</span>}
+                      </div>
+                      {/* Copy button — shown when message has content and isn't streaming */}
+                      {msg.content && !msg.streaming && (
+                        <button
+                          type="button"
+                          className="brain-msg-copy-btn"
+                          onClick={() => handleCopyMessage(msg)}
+                          title={copiedMsgId === msg.id ? 'Copied!' : 'Copy message'}
+                        >
+                          {copiedMsgId === msg.id ? '✓' : '📋'}
+                        </button>
+                      )}
                     </div>
                     {msg.sources && msg.sources.length > 0 && (
                       <div className="brain-sources">
