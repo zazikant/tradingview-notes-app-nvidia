@@ -99,3 +99,5 @@ src/
 ## License
 
 Same as the original repo.
+
+<!-- Updated: 2026-09-18 -->
