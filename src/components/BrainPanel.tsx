@@ -271,8 +271,18 @@ export function BrainPanel({ onClose }: BrainPanelProps) {
       setUploadError(`Unsupported file type: .${ext}. Allowed: PDF, TXT, MD, JSON`);
       return;
     }
-    if (file.size > 50 * 1024 * 1024) {
-      setUploadError(`File too large: ${(file.size / 1024 / 1024).toFixed(1)} MB. Max: 50 MB.`);
+    // Vercel Hobby has a HARD 4.5 MB limit on API route request bodies.
+    // This cannot be overridden — the bodySizeLimit setting only applies to
+    // Server Actions, not to regular API routes. Files larger than 4.5 MB
+    // will get a 413 "Request Entity Too Large" from Vercel before our
+    // code even runs.
+    const MAX_UPLOAD_MB = 4.5;
+    if (file.size > MAX_UPLOAD_MB * 1024 * 1024) {
+      setUploadError(
+        `File too large: ${(file.size / 1024 / 1024).toFixed(1)} MB. ` +
+        `Vercel Hobby limits uploads to ${MAX_UPLOAD_MB} MB. ` +
+        `Try splitting the PDF or uploading a smaller version.`
+      );
       return;
     }
 
@@ -288,7 +298,17 @@ export function BrainPanel({ onClose }: BrainPanelProps) {
         method: 'POST',
         body: formData,
       });
-      const json = await r.json();
+      // Handle non-JSON error responses (e.g. Vercel's 413 "Request Entity Too Large")
+      let json: any;
+      try {
+        json = await r.json();
+      } catch {
+        const text = await r.text().catch(() => '');
+        setUploadError(
+          `Upload failed (${r.status}). ${text.slice(0, 200) || 'Server returned a non-JSON response — likely the file exceeded Vercel\'s body size limit.'}`
+        );
+        return;
+      }
       if (!r.ok) {
         setUploadError(json?.error || `Upload failed (${r.status})`);
         return;
