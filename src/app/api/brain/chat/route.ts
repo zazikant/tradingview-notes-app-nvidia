@@ -162,11 +162,15 @@ export async function POST(req: NextRequest) {
         send('stage-end', { stage: 'aggregate', ok: true, elapsedMs: 0, summary: `${aggregated.length} notes aggregated, ${context.length} chars context` });
 
         // ── Stage 3 (optional): REDUCE ───────────────────────────────
-        // If any document has >1 chunk, run an internal reducer call to
-        // synthesize multi-chunk context into a coherent summary.
-        // This is NOT streamed to the user — it's prep for the final answer.
+        // DISABLED for Muse Glimmer 30B — the reducer adds 30-55s to the
+        // pipeline, which leaves no time for the answer stage within
+        // Vercel Hobby's 60s cap. Without the reducer, the answer stage
+        // gets the raw context (5000 chars) instead of a synthesized
+        // summary — slightly lower quality but completes within budget.
+        // The OpenCode variant (GLM-5.1, 12s reducer) can afford this;
+        // Muse Glimmer 30B cannot.
         let reducedContext = context;
-        const reducerNeeded = aggregated.some((a) => a.chunkCount > 1) && context.length > 0;
+        const reducerNeeded = false; // disabled for Muse Glimmer 30B
 
         if (reducerNeeded) {
           send('stage-start', { stage: 'reduce' });
@@ -202,7 +206,7 @@ export async function POST(req: NextRequest) {
             // Continue with raw context — reduce is optional, don't fail the whole pipeline.
           }
         } else if (context.length > 0) {
-          send('log', { line: `[pipeline] Single-chunk answers — skipping reduce step` });
+          send('log', { line: `[pipeline] Reduce stage disabled for Muse Glimmer 30B — using raw context` });
         }
 
         // ── Stage 4: ANSWER (streaming, up to 30K chars) ─────────────
