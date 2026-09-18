@@ -25,6 +25,7 @@ export function NotesPanel() {
   const [bulkAction, setBulkAction] = useState<'idle' | 'syncing' | 'deleting'>('idle');
   const [bulkProgress, setBulkProgress] = useState<{ current: number; total: number } | null>(null);
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  const [showOnlyInBrain, setShowOnlyInBrain] = useState(false);
 
   // Load the list of synced documents and mark each as a synced note id.
   useEffect(() => {
@@ -259,18 +260,37 @@ export function NotesPanel() {
   const visibleNotes = filteredNotes.slice(0, visibleCount);
   const hasMore = visibleCount < filteredNotes.length;
 
-  // Select-all helper — needs visibleNotes, so defined after it.
+  // Apply the "In Brain" filter on top of filteredNotes. This is a local
+  // filter — doesn't touch global state, so tag filters + search still work.
+  // When showOnlyInBrain is true, only notes whose ID is in syncedNoteIds
+  // are shown. This lets the user browse/search only their synced notes.
+  const displayNotes = showOnlyInBrain
+    ? filteredNotes.filter((n) => syncedNoteIds.has(n.id))
+    : filteredNotes;
+  const displayVisibleNotes = displayNotes.slice(0, visibleCount);
+  const displayHasMore = visibleCount < displayNotes.length;
+
+  // Select-all helper — uses displayVisibleNotes (respects In Brain filter).
   const selectAllVisible = useCallback(() => {
-    setSelectedIds(new Set(visibleNotes.map((n) => n.id)));
-  }, [visibleNotes]);
+    setSelectedIds(new Set(displayVisibleNotes.map((n) => n.id)));
+  }, [displayVisibleNotes]);
 
   return (
     <div className="notes-panel">
       <div className="panel-header">
         <span className="panel-title">Notes</span>
         <span className="notes-count" id="listCount">
-          {filteredNotes.length} note{filteredNotes.length !== 1 ? 's' : ''}
+          {displayNotes.length} note{displayNotes.length !== 1 ? 's' : ''}
+          {showOnlyInBrain && <span className="notes-count-filter"> · in Brain</span>}
         </span>
+        <label className="panel-brain-toggle" title="Show only notes synced to the Brain">
+          <input
+            type="checkbox"
+            checked={showOnlyInBrain}
+            onChange={(e) => setShowOnlyInBrain(e.target.checked)}
+          />
+          <span className="panel-brain-toggle-label">🧠</span>
+        </label>
         <select
           className="sort-select"
           value={sortMode}
@@ -360,13 +380,13 @@ export function NotesPanel() {
             'Pull to refresh'
           )}
         </div>
-        {filteredNotes.length === 0 ? (
+        {displayNotes.length === 0 ? (
           <div style={{ padding: '2rem 1rem', textAlign: 'center', color: 'var(--muted)', fontSize: '13px', fontFamily: 'Syne, sans-serif' }}>
-            No notes found
+            {showOnlyInBrain ? 'No synced notes found. Toggle off 🧠 to see all notes.' : 'No notes found'}
           </div>
         ) : (
           <>
-            {visibleNotes.map(note => (
+            {displayVisibleNotes.map(note => (
               <NoteCard
                 key={note.id}
                 note={note}
@@ -382,7 +402,7 @@ export function NotesPanel() {
                 disabled={bulkAction !== 'idle'}
               />
             ))}
-            {hasMore && (
+            {displayHasMore && (
               <div ref={loadMoreRef} className="load-more-trigger">
                 {isLoading && (
                   <div className="load-more-spinner">
@@ -391,9 +411,9 @@ export function NotesPanel() {
                 )}
               </div>
             )}
-            {!hasMore && filteredNotes.length > PAGE_SIZE && (
+            {!displayHasMore && displayNotes.length > PAGE_SIZE && (
               <div className="all-loaded-msg">
-                All {filteredNotes.length} notes loaded
+                All {displayNotes.length} notes loaded
               </div>
             )}
           </>
