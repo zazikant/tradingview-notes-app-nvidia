@@ -196,6 +196,9 @@ export function Editor({ onCopy, onDelete, onSave }: EditorProps) {
   const editorBodyRef = useRef<HTMLDivElement>(null);
   // Default: view/read mode. Must explicitly click Edit to enable editing.
   const [isEditing, setIsEditing] = useState(false);
+  // Mobile-only: collapse the editor header (ticker, tags, toolbar) to give
+  // the textarea full screen space. Desktop is unaffected (button is hidden).
+  const [headerCollapsed, setHeaderCollapsed] = useState(false);
 
   // Pull-to-refresh support on the editor body
   const { containerRef: pullRef, pullState, pullDistance } = usePullToRefresh(70, () => {
@@ -596,6 +599,15 @@ export function Editor({ onCopy, onDelete, onSave }: EditorProps) {
 
   return (
     <div className="editor-panel">
+      {/* Mobile collapse toggle — hidden on desktop */}
+      <button
+        className="editor-collapse-toggle"
+        onClick={() => setHeaderCollapsed(c => !c)}
+        title={headerCollapsed ? 'Show header' : 'Hide header (maximize editing space)'}
+      >
+        {headerCollapsed ? '▼' : '▲'}
+      </button>
+      <div className={`editor-header-wrap ${headerCollapsed ? 'collapsed' : ''}`}>
       <div className="editor-topbar">
         <textarea
           ref={tickerRef}
@@ -786,6 +798,7 @@ export function Editor({ onCopy, onDelete, onSave }: EditorProps) {
           <button className={`fmt-btn fmt-btn-save ${isDirty() ? 'fmt-btn-dirty' : ''}`} title="Save note (Ctrl+S)" onClick={async () => { const renumbered = renumberLists(activeNote.body); await saveCurrentNote({ body: renumbered }); onSave(); }}>{isDirty() ? 'Save •' : 'Saved'}</button>
         </div>
       </div>
+      </div>{/* end editor-header-wrap */}
       <div className="editor-body" ref={setEditorBodyRef}>
         {/* Pull-to-refresh indicator (mobile only) */}
         <div
