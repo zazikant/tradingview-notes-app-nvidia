@@ -150,12 +150,14 @@ export async function POST(req: NextRequest) {
         const aggregated = rerankAndAggregate(hits);
         send('log', { line: `[pinecone] ${hits.length} chunks / ${aggregated.length} notes above threshold` });
 
-        const sources = aggregated.map((a) => ({
-          filename: a.filename,
-          ticker: a.ticker || '',
-          avgScore: Number(a.avgScore.toFixed(3)),
-          chunkCount: a.chunkCount,
-        }));
+        const sources = aggregated
+          .map((a) => ({
+            filename: a.filename,
+            ticker: a.ticker || '',
+            avgScore: Number(a.avgScore.toFixed(3)),
+            chunkCount: a.chunkCount,
+          }))
+          .sort((a, b) => b.avgScore - a.avgScore);  // sort by score descending (highest first)
         send('sources', { sources });
 
         // Use 5000 chars context (matches source repo)
