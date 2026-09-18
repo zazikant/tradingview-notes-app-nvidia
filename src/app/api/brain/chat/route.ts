@@ -10,20 +10,35 @@ import { nvidiaChatStreamControlled } from '@/lib/brain/nvidia';
 export const runtime = 'nodejs';
 export const maxDuration = 60;  // Vercel Hobby Node cap (was 180 — Vercel ignored it and killed at 60s)
 
-// ─── Prompts (ported verbatim from rag-document-assistant-opencode) ─────────
-// These are the exact prompts that produced good OpenCode output in the
-// source RAG project. Do not paraphrase — the wording matters for GLM-5.1.
+// ─── Prompts (ported verbatim from rag-document-assistant / OpenCode variant) ──
+// These are the exact prompts that produced great output in the source
+// RAG projects. Muse Glimmer 30B's reasoning_content is treated as a
+// silent scratchpad — the user only sees the finished `content`.
 
-const SYSTEM_PROMPT = `You are a helpful research assistant. Answer the user's question using ONLY the context below.
+const SYSTEM_PROMPT = `You are an intelligent second-brain assistant with deep reasoning ability. You don't merely retrieve — you REASON through the context to produce the smartest, most useful answer.
 
-CRITICAL: Answer directly. Do NOT reason, think aloud, or show your chain-of-thought. Just give the finished answer immediately.
-
-Rules:
-1. Use ONLY the provided Context. Do NOT guess or assume details not in Context.
+STRICT FIDELITY RULES:
+1. Use ONLY the provided Context to answer. Do NOT guess or assume details not in Context.
 2. If the Context does NOT contain relevant information, say: "I don't have that information in my knowledge base."
-3. Cite sources inline as [Document: filename] when using information from Context.
-4. Be concise — match your answer length to the question's complexity.
-5. Never fabricate information not in Context.`;
+3. When discussing specific entities (people, products, companies), use ONLY attributes explicitly stated — never transfer characteristics from one entity to another.
+4. Always cite sources inline as [Document: filename] when using information from Context.
+5. Never fabricate APIs, function names, or implementation details not in Context.
+
+ADAPTIVE LENGTH (the key skill):
+Match your answer length to the question's complexity. Be CONCISE when the question is simple; be COMPREHENSIVE when the question is complex.
+
+- SHORT (2-4 sentences, ~200 chars): factual lookups — "What is X?", "Who owns Y?", "When did Z happen?"
+- MEDIUM (1-3 paragraphs, ~800 chars): how/why questions about a single concept
+- LONG (multiple sections, ~3000 chars): multi-faceted questions, architecture explanations, comparisons
+- VERY LONG (detailed with code/examples, up to 30000 chars): complex technical questions, full implementation guides, deep architectural reasoning, multi-step tutorials
+
+QUALITY RULES:
+- Lead with the direct answer, then expand. Don't bury the lede.
+- For coding questions: provide concrete code examples, patterns, and architecture when the context supports it.
+- For conceptual questions: structure with headers, bullet points, and clear reasoning.
+- For multi-part questions: address each part explicitly.
+- When the context has gaps, say what you CAN answer and explicitly note what's missing.
+- Be the smartest version of yourself — synthesize, infer logical consequences, draw connections the writer implied but didn't state.`;
 
 const REDUCER_PROMPT = `You are a research synthesis engine. Given multiple document chunks about the same topic, REASON through them to produce a coherent, comprehensive synthesis.
 
@@ -148,15 +163,16 @@ export async function POST(req: NextRequest) {
         send('stage-end', { stage: 'aggregate', ok: true, elapsedMs: 0, summary: `${aggregated.length} notes aggregated, ${context.length} chars context` });
 
         // ── Stage 3 (optional): REDUCE ───────────────────────────────
-        // DISABLED for Muse Glimmer 30B — the reducer adds 30-55s to the
-        // pipeline, which leaves no time for the answer stage within
-        // Vercel Hobby's 60s cap. Without the reducer, the answer stage
-        // gets the raw context (5000 chars) instead of a synthesized
-        // summary — slightly lower quality but completes within budget.
-        // The OpenCode variant (GLM-5.1, 12s reducer) can afford this;
-        // Muse Glimmer 30B cannot.
+        // If any document has >1 chunk, run an internal reducer call to
+        // synthesize multi-chunk context into a coherent summary.
+        // This is NOT streamed to the user — it's prep for the final answer.
+        //
+        // Muse Glimmer 30B is a reasoning model — its reasoning_content is
+        // treated as a silent scratchpad (accumulated but not streamed).
+        // The reducer uses max_tokens=512 (~15s) to keep the pipeline under
+        // 60s: reduce (~15s) + answer (~30s) = ~45s total.
         let reducedContext = context;
-        const reducerNeeded = false; // disabled for Muse Glimmer 30B
+        const reducerNeeded = aggregated.some((a) => a.chunkCount > 1) && context.length > 0;
 
         if (reducerNeeded) {
           send('stage-start', { stage: 'reduce' });
@@ -170,7 +186,7 @@ export async function POST(req: NextRequest) {
               ],
               temperature: 0.2,
               topP: 0.95,
-              maxTokens: 1024,
+              maxTokens: 512,    // small budget for quick synthesis (~15s on Muse Glimmer)
               onLog: (line) => send('log', { line }),
               // No onChunk — reducer output is internal, not streamed to the user.
             });
@@ -192,7 +208,7 @@ export async function POST(req: NextRequest) {
             // Continue with raw context — reduce is optional, don't fail the whole pipeline.
           }
         } else if (context.length > 0) {
-          send('log', { line: `[pipeline] Reduce stage disabled for Muse Glimmer 30B — using raw context` });
+          send('log', { line: `[pipeline] Single-chunk answers — skipping reduce step` });
         }
 
         // ── Stage 4: ANSWER (streaming, up to 30K chars) ─────────────
@@ -234,7 +250,7 @@ export async function POST(req: NextRequest) {
               messages,
               temperature: 0.3,   // deterministic, matches OpenCode (Muse Glimmer default is 1.0 — too random for RAG)
               topP: 0.95,         // Muse Glimmer recommended value
-              maxTokens: 1024,    // Muse Glimmer 30B is a reasoning model — 3072+ tokens = 55s+ timeout. 1024 constrains reasoning budget so the model produces content within 20-25s.
+              maxTokens: 2048,    // enough for reasoning (scratchpad) + finished content (~30s on Muse Glimmer)
               onLog: (line) => send('log', { line }),
               onChunk: (text) => send('chunk', { text }),
             });
