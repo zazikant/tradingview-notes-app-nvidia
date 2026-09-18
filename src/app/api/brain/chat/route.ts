@@ -221,9 +221,8 @@ The context below contains chunks from multiple documents. Before answering, syn
           try {
             const result = await nvidiaChatStreamControlled({
               messages,
-              temperature: 0.3,   // deterministic, matches OpenCode (Muse Glimmer default is 1.0 — too random for RAG)
-              topP: 0.95,         // Muse Glimmer recommended value
-              maxTokens: 4096,    // enough for reasoning (scratchpad) + complete finished content (~50-56s on Muse Glimmer). The model spends most tokens on reasoning before producing content.
+              // Use Nemotron defaults from nvidia.ts: temp=0.5, top_p=1.0, max_tokens=1024, reasoning_effort=low
+              // Nemotron is fast (~4s) and produces clean content — no need to override.
               onLog: (line) => send('log', { line }),
               onChunk: (text) => send('chunk', { text }),
             });

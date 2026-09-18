@@ -1,49 +1,27 @@
 /**
  * NVIDIA LLM client — streaming chat completions via NVIDIA's integrate API.
  *
- * Ported from rag-document-assistant/src/lib/nvidia.ts (which itself was
- * ported from the OpenCode variant). Uses raw fetch + SSE parsing so we
- * don't need the openai SDK at runtime.
+ * Uses raw fetch + SSE parsing so we don't need the openai SDK at runtime.
  *
  * Required env vars (set on Vercel):
  *   NVIDIA_API_KEY        — your NVIDIA build API key
  *
  * Gateway: https://integrate.api.nvidia.com/v1/chat/completions
- * Model:   openai/gpt-oss-20b (default) — NVIDIA-hosted GPT-OSS 20B.
- *          Other options: `openai/gpt-oss-120b`, `meta/llama-3.1-405b-instruct`,
- *          `nvidia/llama-3.1-nemotron-70b-instruct`, etc.
+ * Model:   nvidia/nemotron-3-super-120b-a12b (default) — 120B params, fast (~4s),
+ *          produces clean content with minimal reasoning. Uses reasoning_effort:'low'.
  *
- * Key differences from the OpenCode variant:
- *   - Different base URL: integrate.api.nvidia.com (vs opencode.ai/zen/go/v1)
- *   - No `reasoning_effort: 'low'` param — NVIDIA's GPT-OSS doesn't need it.
- *     (OpenCode required it because GLM 5.3 is a thinking-only model.)
- *   - No `x-opencode-session` header — that was OpenCode-specific routing.
- *
- * Retry / rate-handling (faithful to the source RAG project):
- *   - Retryable HTTP statuses: 429 (rate limit), 500, 502, 503, 504
+ * Retry / rate-handling:
+ *   - Retryable HTTP statuses: 429, 500, 502, 503, 504
  *   - Retryable error codes: ECONNRESET, ETIMEDOUT, UND_ERR_CONNECT_TIMEOUT
- *   - Retryable error names: APIConnectionError, APITimeoutError, ConnectionError
- *   - Legacy non-streaming path: 3 retries, 15s delay between attempts
- *   - Controlled streaming path: 1 attempt per call (pipeline-level retry
- *     handles additional attempts), exponential backoff (500ms × attempt)
- *   - Per-call timeout: 25s (under Vercel Hobby's 30s Edge cap)
+ *   - Per-call timeout: 55s (under Vercel Hobby's 60s Node cap)
  */
 
 const NVIDIA_GATEWAY = 'https://integrate.api.nvidia.com/v1/chat/completions';
-// Default model: meta/muse-glimmer-30b
-// This is the model that all 3 API keys have access to, and it responds in
-// 1-4 seconds (vs openai/gpt-oss-20b which times out at 25s due to NVIDIA
-// capacity issues). Recommended tuning from NVIDIA's official sample:
-//   temperature=1.0, top_p=0.95, max_tokens=8192
-const NVIDIA_DEFAULT_MODEL = 'meta/muse-glimmer-30b';
-const NVIDIA_DEFAULT_TEMPERATURE = 1.0;
-const NVIDIA_DEFAULT_TOP_P = 0.95;
-const NVIDIA_DEFAULT_MAX_TOKENS = 3072;  // Enough for reasoning + finished answer. 2048 = cut off mid-sentence. 4096+ = 47-60s (exceeds 55s timeout). 3072 completes in 30-40s.
-// 58s per-call timeout — under Vercel Hobby's 60s Node runtime cap.
-// Muse Glimmer 30B with 4096 max_tokens + RAG context takes 50-56s
-// (it spends most of the budget on reasoning before producing content).
-// 58s gives a 2s safety margin.
-const NVIDIA_DEFAULT_TIMEOUT_MS = 58_000;
+const NVIDIA_DEFAULT_MODEL = 'nvidia/nemotron-3-super-120b-a12b';
+const NVIDIA_DEFAULT_TEMPERATURE = 0.5;
+const NVIDIA_DEFAULT_TOP_P = 1.0;
+const NVIDIA_DEFAULT_MAX_TOKENS = 1024;
+const NVIDIA_DEFAULT_TIMEOUT_MS = 55_000;
 
 export interface ControlledStreamOptions {
   model?: string;
@@ -139,6 +117,7 @@ export async function nvidiaChatStreamControlled(
           temperature,
           top_p: topP,
           stream: true,
+          reasoning_effort: 'low',
         }),
         signal: controller.signal,
       });
