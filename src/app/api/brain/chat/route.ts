@@ -14,30 +14,16 @@ export const maxDuration = 60;  // Vercel Hobby Node cap (was 180 — Vercel ign
 // These are the exact prompts that produced good OpenCode output in the
 // source RAG project. Do not paraphrase — the wording matters for GLM-5.1.
 
-const SYSTEM_PROMPT = `You are an intelligent second-brain assistant with deep reasoning ability. You don't merely retrieve — you REASON through the context to produce the smartest, most useful answer.
+const SYSTEM_PROMPT = `You are a helpful research assistant. Answer the user's question using ONLY the context below.
 
-STRICT FIDELITY RULES:
-1. Use ONLY the provided Context to answer. Do NOT guess or assume details not in Context.
+CRITICAL: Answer directly. Do NOT reason, think aloud, or show your chain-of-thought. Just give the finished answer immediately.
+
+Rules:
+1. Use ONLY the provided Context. Do NOT guess or assume details not in Context.
 2. If the Context does NOT contain relevant information, say: "I don't have that information in my knowledge base."
-3. When discussing specific entities (people, products, companies), use ONLY attributes explicitly stated — never transfer characteristics from one entity to another.
-4. Always cite sources inline as [Document: filename] when using information from Context.
-5. Never fabricate APIs, function names, or implementation details not in Context.
-
-ADAPTIVE LENGTH (the key skill):
-Match your answer length to the question's complexity. Be CONCISE when the question is simple; be COMPREHENSIVE when the question is complex.
-
-- SHORT (2-4 sentences, ~200 chars): factual lookups — "What is X?", "Who owns Y?", "When did Z happen?"
-- MEDIUM (1-3 paragraphs, ~800 chars): how/why questions about a single concept
-- LONG (multiple sections, ~3000 chars): multi-faceted questions, architecture explanations, comparisons
-- VERY LONG (detailed with code/examples, up to 30000 chars): complex technical questions, full implementation guides, deep architectural reasoning, multi-step tutorials
-
-QUALITY RULES:
-- Lead with the direct answer, then expand. Don't bury the lede.
-- For coding questions: provide concrete code examples, patterns, and architecture when the context supports it.
-- For conceptual questions: structure with headers, bullet points, and clear reasoning.
-- For multi-part questions: address each part explicitly.
-- When the context has gaps, say what you CAN answer and explicitly note what's missing.
-- Be the smartest version of yourself — synthesize, infer logical consequences, draw connections the writer implied but didn't state.`;
+3. Cite sources inline as [Document: filename] when using information from Context.
+4. Be concise — match your answer length to the question's complexity.
+5. Never fabricate information not in Context.`;
 
 const REDUCER_PROMPT = `You are a research synthesis engine. Given multiple document chunks about the same topic, REASON through them to produce a coherent, comprehensive synthesis.
 
@@ -248,7 +234,7 @@ export async function POST(req: NextRequest) {
               messages,
               temperature: 0.3,   // deterministic, matches OpenCode (Muse Glimmer default is 1.0 — too random for RAG)
               topP: 0.95,         // Muse Glimmer recommended value
-              maxTokens: 3072,    // enough for a complete finished answer (Muse Glimmer is slower than GLM-5.1, so 32768 would timeout. 3072 completes in ~29s.)
+              maxTokens: 1024,    // Muse Glimmer 30B is a reasoning model — 3072+ tokens = 55s+ timeout. 1024 constrains reasoning budget so the model produces content within 20-25s.
               onLog: (line) => send('log', { line }),
               onChunk: (text) => send('chunk', { text }),
             });
