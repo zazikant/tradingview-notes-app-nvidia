@@ -129,6 +129,42 @@ export function NotesPanel() {
     setBulkProgress(null);
   }, []);
 
+  // ─── Bulk remove from Brain ───────────────────────────────────────
+  const handleBulkRemoveFromBrain = useCallback(async () => {
+    if (selectedIds.size === 0 || bulkAction !== 'idle') return;
+    setBulkAction('deleting');
+    setBulkProgress({ current: 0, total: selectedIds.size });
+
+    const ids = Array.from(selectedIds);
+    let successCount = 0;
+    for (let i = 0; i < ids.length; i++) {
+      const id = ids[i];
+      setBulkProgress({ current: i + 1, total: ids.length });
+      if (syncedNoteIds.has(id)) {
+        try {
+          await fetch(`/api/brain/documents?filename=${encodeURIComponent(`note-${id}.txt`)}`, {
+            method: 'DELETE',
+          });
+          successCount++;
+        } catch (err) {
+          console.error('[NotesPanel] bulk remove from Brain error for', id, err);
+        }
+      }
+    }
+    // Update synced set
+    const newSynced = new Set(syncedNoteIds);
+    for (const id of ids) newSynced.delete(id);
+    setSyncedNoteIds(newSynced);
+
+    setBulkAction('idle');
+    setBulkProgress(null);
+    setSelectMode(false);
+    setSelectedIds(new Set());
+    if (successCount > 0) {
+      alert(`Removed ${successCount} note${successCount !== 1 ? 's' : ''} from the Brain.`);
+    }
+  }, [selectedIds, bulkAction, syncedNoteIds]);
+
   const handleBulkSync = useCallback(async () => {
     if (selectedIds.size === 0 || bulkAction !== 'idle') return;
     setBulkAction('syncing');
@@ -374,6 +410,15 @@ export function NotesPanel() {
               title="Export selected notes as CSV"
             >
               ⬇ Export ({selectedIds.size})
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={handleBulkRemoveFromBrain}
+              disabled={selectedIds.size === 0 || bulkAction !== 'idle'}
+              title="Remove selected notes from the Brain (notes are NOT deleted, only removed from Brain)"
+            >
+              ✕ Brain ({selectedIds.size})
             </button>
             <button
               type="button"
