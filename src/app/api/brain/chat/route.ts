@@ -158,68 +158,35 @@ export async function POST(req: NextRequest) {
         }));
         send('sources', { sources });
 
-        // Use 5000 chars context (matches source repo, was 4000)
+        // Use 5000 chars context (matches source repo)
         const context = buildContextFromAggregated(aggregated, 5000);
         send('stage-end', { stage: 'aggregate', ok: true, elapsedMs: 0, summary: `${aggregated.length} notes aggregated, ${context.length} chars context` });
 
-        // ── Stage 3 (optional): REDUCE ───────────────────────────────
-        // If any document has >1 chunk, run an internal reducer call to
-        // synthesize multi-chunk context into a coherent summary.
-        // This is NOT streamed to the user — it's prep for the final answer.
+        // ── Stage 3: ANSWER (single call — reducer merged into answer) ──
+        // Instead of two separate calls (reduce → answer) which eats the 60s
+        // budget, we merge the reducer into the answer prompt. The model's
+        // reasoning_content (scratchpad) handles synthesis internally, then
+        // produces the finished content as the answer.
         //
-        // Muse Glimmer 30B is a reasoning model — its reasoning_content is
-        // treated as a silent scratchpad (accumulated but not streamed).
-        // The reducer uses max_tokens=512 (~15s) to keep the pipeline under
-        // 60s: reduce (~15s) + answer (~30s) = ~45s total.
-        let reducedContext = context;
-        const reducerNeeded = aggregated.some((a) => a.chunkCount > 1) && context.length > 0;
-
-        if (reducerNeeded) {
-          send('stage-start', { stage: 'reduce' });
-          send('log', { line: `[pipeline] Multi-chunk aggregation — calling NVIDIA to reduce context…` });
-
-          try {
-            const reduceResult = await nvidiaChatStreamControlled({
-              messages: [
-                { role: 'system', content: REDUCER_PROMPT },
-                { role: 'user', content: `Question: ${query}\n\nContext:\n${context}\n\nPlease synthesize this information.` },
-              ],
-              temperature: 0.2,
-              topP: 0.95,
-              maxTokens: 512,    // small budget for quick synthesis (~15s on Muse Glimmer)
-              onLog: (line) => send('log', { line }),
-              // No onChunk — reducer output is internal, not streamed to the user.
-            });
-            reducedContext = reduceResult.content;
-            send('stage-end', {
-              stage: 'reduce',
-              ok: true,
-              elapsedMs: reduceResult.elapsedMs,
-              summary: `${reducedContext.length} chars reduced context`,
-            });
-          } catch (reduceError: any) {
-            send('log', { line: `[pipeline] Reduce failed: ${(reduceError?.message || 'unknown').slice(0, 100)} — using raw context` });
-            send('stage-end', {
-              stage: 'reduce',
-              ok: false,
-              elapsedMs: 0,
-              summary: `Reduce failed — using raw context`,
-            });
-            // Continue with raw context — reduce is optional, don't fail the whole pipeline.
-          }
-        } else if (context.length > 0) {
-          send('log', { line: `[pipeline] Single-chunk answers — skipping reduce step` });
-        }
-
-        // ── Stage 4: ANSWER (streaming, up to 30K chars) ─────────────
+        // This gives the full 58s budget to ONE call instead of splitting it
+        // across two calls. The model reasons about the context (synthesis)
+        // in its scratchpad, then outputs the structured answer as content.
         send('stage-start', { stage: 'answer' });
 
-        // Pick the system prompt: use the powerful SYSTEM_PROMPT when we
-        // have context, fall back to NO_CONTEXT_PROMPT otherwise.
-        // The context is injected into the user message (matches source repo).
-        const systemPrompt = context.length > 0 ? SYSTEM_PROMPT : NO_CONTEXT_PROMPT;
+        // When there's multi-chunk context, prepend synthesis instructions to
+        // the system prompt so the model synthesizes AND answers in one call.
+        const hasMultiChunk = aggregated.some((a) => a.chunkCount > 1);
+        const systemPrompt = context.length > 0
+          ? (hasMultiChunk
+            ? `${SYSTEM_PROMPT}
+
+ADDITIONAL INSTRUCTION FOR MULTI-SOURCE CONTEXT:
+The context below contains chunks from multiple documents. Before answering, synthesize the information across all chunks — merge overlapping details, note any conflicts, and draw connections between sources. Then provide your answer using the synthesized understanding.`
+            : SYSTEM_PROMPT)
+          : NO_CONTEXT_PROMPT;
+
         const userContent = context.length > 0
-          ? `Context:\n${reducedContext}\n\n---\n\nQuestion: ${query}`
+          ? `Context:\n${context}\n\n---\n\nQuestion: ${query}`
           : query;
 
         const messages: { role: 'system' | 'user' | 'assistant'; content: string }[] = [
@@ -231,8 +198,12 @@ export async function POST(req: NextRequest) {
           { role: 'user', content: userContent },
         ];
 
+        if (hasMultiChunk) {
+          send('log', { line: `[pipeline] Multi-source context detected — synthesis merged into answer call (saves ~5-15s vs separate reducer)` });
+        }
+
         // Pipeline-level retry: up to 3 attempts. Each attempt gets a fresh
-        // 55s budget. Between attempts, emit 'reset' so the client clears
+        // 58s budget. Between attempts, emit 'reset' so the client clears
         // its partial answer buffer (prevents garbled concatenation).
         let answerOk = false;
         let lastErr = '';
@@ -250,7 +221,7 @@ export async function POST(req: NextRequest) {
               messages,
               temperature: 0.3,   // deterministic, matches OpenCode (Muse Glimmer default is 1.0 — too random for RAG)
               topP: 0.95,         // Muse Glimmer recommended value
-              maxTokens: 2048,    // enough for reasoning (scratchpad) + finished content (~30s on Muse Glimmer)
+              maxTokens: 4096,    // enough for reasoning (scratchpad) + complete finished content (~50-56s on Muse Glimmer). The model spends most tokens on reasoning before producing content.
               onLog: (line) => send('log', { line }),
               onChunk: (text) => send('chunk', { text }),
             });

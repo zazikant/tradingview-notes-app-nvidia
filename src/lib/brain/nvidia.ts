@@ -39,10 +39,11 @@ const NVIDIA_DEFAULT_MODEL = 'meta/muse-glimmer-30b';
 const NVIDIA_DEFAULT_TEMPERATURE = 1.0;
 const NVIDIA_DEFAULT_TOP_P = 0.95;
 const NVIDIA_DEFAULT_MAX_TOKENS = 3072;  // Enough for reasoning + finished answer. 2048 = cut off mid-sentence. 4096+ = 47-60s (exceeds 55s timeout). 3072 completes in 30-40s.
-// 55s per-call timeout — under Vercel Hobby's 60s Node runtime cap.
-// Muse Glimmer 30B with 6142 max_tokens + RAG context takes 30-45s.
-// 55s gives a 5s safety margin for stream setup + final chunk flushing.
-const NVIDIA_DEFAULT_TIMEOUT_MS = 55_000;
+// 58s per-call timeout — under Vercel Hobby's 60s Node runtime cap.
+// Muse Glimmer 30B with 4096 max_tokens + RAG context takes 50-56s
+// (it spends most of the budget on reasoning before producing content).
+// 58s gives a 2s safety margin.
+const NVIDIA_DEFAULT_TIMEOUT_MS = 58_000;
 
 export interface ControlledStreamOptions {
   model?: string;
