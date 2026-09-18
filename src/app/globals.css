@@ -298,7 +298,7 @@ body {
 
 /* ── Notes panel ── */
 .notes-panel {
-  width: 320px;
+  width: 380px;
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
@@ -310,9 +310,9 @@ body {
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  flex-shrink: 0;
+  flex-wrap: wrap;
   gap: 8px;
+  flex-shrink: 0;
 }
 .panel-title { font-family: var(--font-syne), 'Syne', sans-serif; font-size: 13px; font-weight: 600; color: var(--text); }
 .notes-count { font-size: 11px; color: var(--muted); font-family: var(--font-syne), 'Syne', sans-serif; }
