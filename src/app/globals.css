@@ -2253,40 +2253,33 @@ body {
 
 /* ─── Mobile editor header collapse toggle ─── */
 
-/* Toggle button — hidden on desktop, visible on mobile */
+/* Toggle button — visible on both desktop and mobile */
 .editor-collapse-toggle {
-  display: none;  /* hidden on desktop */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 28px;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 12px;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.editor-collapse-toggle:hover {
+  background: var(--accent-light);
+  color: var(--accent-text);
 }
 
-/* Mobile only: show the toggle + collapse behavior */
-@media (max-width: 768px) {
-  .editor-collapse-toggle {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    height: 28px;
-    border: none;
-    border-bottom: 1px solid var(--border);
-    background: var(--surface2);
-    color: var(--muted);
-    cursor: pointer;
-    font-size: 12px;
-    flex-shrink: 0;
-    transition: background 0.15s;
-  }
-  .editor-collapse-toggle:hover {
-    background: var(--accent-light);
-    color: var(--accent-text);
-  }
+/* When collapsed, hide the header content (topbar + tags + toolbar) */
+.editor-header-wrap.collapsed {
+  display: none;
+}
 
-  /* When collapsed, hide the header content (topbar + tags + toolbar) */
-  .editor-header-wrap.collapsed {
-    display: none;
-  }
-
-  /* When header is collapsed, the editor body takes full height */
-  .editor-header-wrap.collapsed + .editor-body {
-    flex: 1;
-  }
+/* When header is collapsed, the editor body takes full height */
+.editor-header-wrap.collapsed + .editor-body {
+  flex: 1;
 }
