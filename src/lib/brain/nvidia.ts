@@ -18,9 +18,9 @@
 
 const NVIDIA_GATEWAY = 'https://integrate.api.nvidia.com/v1/chat/completions';
 const NVIDIA_DEFAULT_MODEL = 'nvidia/nemotron-3-super-120b-a12b';
-const NVIDIA_DEFAULT_TEMPERATURE = 0.5;
+const NVIDIA_DEFAULT_TEMPERATURE = 0.3;
 const NVIDIA_DEFAULT_TOP_P = 1.0;
-const NVIDIA_DEFAULT_MAX_TOKENS = 1024;
+const NVIDIA_DEFAULT_MAX_TOKENS = 4096;
 const NVIDIA_DEFAULT_TIMEOUT_MS = 55_000;
 
 export interface ControlledStreamOptions {
