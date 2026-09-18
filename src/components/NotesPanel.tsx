@@ -9,7 +9,7 @@ import { relDate } from '@/lib/utils';
 const PAGE_SIZE = 20;
 
 export function NotesPanel() {
-  const { filteredNotes, activeId, openNote, sortMode, setSortMode, deleteNote } = useNotes();
+  const { filteredNotes, activeId, openNote, sortMode, setSortMode, deleteNote, exportSelectedNotes } = useNotes();
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [isLoading, setIsLoading] = useState(false);
   const loadMoreRef = useRef<HTMLDivElement>(null);
@@ -360,6 +360,20 @@ export function NotesPanel() {
               title="Sync selected notes to the Brain (re-syncs already-synced ones)"
             >
               🧠 Sync ({selectedIds.size})
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={() => {
+                const selectedNotes = displayVisibleNotes.filter(n => selectedIds.has(n.id));
+                if (selectedNotes.length > 0) {
+                  exportSelectedNotes(selectedNotes);
+                }
+              }}
+              disabled={selectedIds.size === 0 || bulkAction !== 'idle'}
+              title="Export selected notes as CSV"
+            >
+              ⬇ Export ({selectedIds.size})
             </button>
             <button
               type="button"

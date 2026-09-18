@@ -241,6 +241,12 @@ export function useNotes() {
     exportNotesToCSV(state.notes, state.tags);
   }, [state.notes, state.tags]);
 
+  // Export only the given subset of notes (used by NotesPanel select mode).
+  const exportSelectedNotes = useCallback((notesToExport: Note[]) => {
+    if (notesToExport.length === 0) return;
+    exportNotesToCSV(notesToExport, state.tags);
+  }, [state.tags]);
+
   const importNotesFromCSV = useCallback(async (csv: string): Promise<number> => {
     const { notes: newNotes, newTags, skipped } = parseNotesFromCSV(csv, state.tags, state.notes);
     // Add new tags first
@@ -254,6 +260,29 @@ export function useNotes() {
       const cleaned = { ...note, tags: note.tags.filter(id => validTagIds.has(id)) };
       dispatch({ type: 'ADD_NOTE', payload: cleaned });
       await sbAddNote(cleaned);
+    }
+    // Also sync imported notes to the Brain so they're immediately searchable.
+    // This is non-blocking — if Brain sync fails, the notes are still imported.
+    // We do this after all notes are added so the UI doesn't hang.
+    if (newNotes.length > 0) {
+      (async () => {
+        for (const note of newNotes) {
+          const cleaned = note; // already cleaned above
+          try {
+            await fetch('/api/brain/sync', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                noteId: cleaned.id,
+                ticker: cleaned.ticker || '',
+                body: cleaned.body || '',
+              }),
+            });
+          } catch (err) {
+            console.warn('[importNotesFromCSV] brain sync failed for', cleaned.id, err);
+          }
+        }
+      })();
     }
     return skipped;
   }, [state.tags, state.notes, dispatch]);
@@ -346,6 +375,7 @@ export function useNotes() {
       }
     },
     exportAllNotes,
+    exportSelectedNotes,
     importNotesFromCSV,
     deleteMatchingNotes,
     countFor,
