@@ -25,7 +25,7 @@ export function NotesPanel() {
   const [bulkAction, setBulkAction] = useState<'idle' | 'syncing' | 'deleting'>('idle');
   const [bulkProgress, setBulkProgress] = useState<{ current: number; total: number } | null>(null);
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
-  const [showOnlyInBrain, setShowOnlyInBrain] = useState(false);
+  const [brainFilter, setBrainFilter] = useState<'all' | 'in' | 'not-in'>('all');
 
   // Load the list of synced documents and mark each as a synced note id.
   useEffect(() => {
@@ -260,13 +260,14 @@ export function NotesPanel() {
   const visibleNotes = filteredNotes.slice(0, visibleCount);
   const hasMore = visibleCount < filteredNotes.length;
 
-  // Apply the "In Brain" filter on top of filteredNotes. This is a local
+  // Apply the brain filter on top of filteredNotes. This is a local
   // filter — doesn't touch global state, so tag filters + search still work.
-  // When showOnlyInBrain is true, only notes whose ID is in syncedNoteIds
-  // are shown. This lets the user browse/search only their synced notes.
-  const displayNotes = showOnlyInBrain
-    ? filteredNotes.filter((n) => syncedNoteIds.has(n.id))
-    : filteredNotes;
+  // 'all' = show everything, 'in' = only synced, 'not-in' = only unsynced.
+  const displayNotes = brainFilter === 'all'
+    ? filteredNotes
+    : brainFilter === 'in'
+      ? filteredNotes.filter((n) => syncedNoteIds.has(n.id))
+      : filteredNotes.filter((n) => !syncedNoteIds.has(n.id));
   const displayVisibleNotes = displayNotes.slice(0, visibleCount);
   const displayHasMore = visibleCount < displayNotes.length;
 
@@ -281,16 +282,22 @@ export function NotesPanel() {
         <span className="panel-title">Notes</span>
         <span className="notes-count" id="listCount">
           {displayNotes.length} note{displayNotes.length !== 1 ? 's' : ''}
-          {showOnlyInBrain && <span className="notes-count-filter"> · in Brain</span>}
+          {brainFilter !== 'all' && (
+            <span className="notes-count-filter">
+              {' '}· {brainFilter === 'in' ? 'in Brain' : 'not in Brain'}
+            </span>
+          )}
         </span>
-        <label className="panel-brain-toggle" title="Show only notes synced to the Brain">
-          <input
-            type="checkbox"
-            checked={showOnlyInBrain}
-            onChange={(e) => setShowOnlyInBrain(e.target.checked)}
-          />
-          <span className="panel-brain-toggle-label">🧠</span>
-        </label>
+        <select
+          className="brain-filter-select"
+          value={brainFilter}
+          onChange={(e) => setBrainFilter(e.target.value as 'all' | 'in' | 'not-in')}
+          title="Filter by Brain sync status"
+        >
+          <option value="all">All notes</option>
+          <option value="in">🧠 In Brain</option>
+          <option value="not-in">○ Not in Brain</option>
+        </select>
         <select
           className="sort-select"
           value={sortMode}
@@ -382,7 +389,9 @@ export function NotesPanel() {
         </div>
         {displayNotes.length === 0 ? (
           <div style={{ padding: '2rem 1rem', textAlign: 'center', color: 'var(--muted)', fontSize: '13px', fontFamily: 'Syne, sans-serif' }}>
-            {showOnlyInBrain ? 'No synced notes found. Toggle off 🧠 to see all notes.' : 'No notes found'}
+            {brainFilter === 'in' ? 'No synced notes found. Switch to "All notes" to see everything.' :
+             brainFilter === 'not-in' ? 'All notes are synced to the Brain! 🎉' :
+             'No notes found'}
           </div>
         ) : (
           <>

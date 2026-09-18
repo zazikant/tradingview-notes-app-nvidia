@@ -103,7 +103,7 @@ export async function upsertRecords(
 
   // Batch the embedding call — Pinecone's inference.embed has a limit
   // on the number of inputs per request. Batch in groups of 100.
-  const EMBED_BATCH_SIZE = 100;
+  const EMBED_BATCH_SIZE = 90; // Pinecone limit is 96 inputs per embed call
   const allVectors: any[] = [];
 
   for (let i = 0; i < chunks.length; i += EMBED_BATCH_SIZE) {
