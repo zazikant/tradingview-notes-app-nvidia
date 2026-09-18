@@ -101,31 +101,43 @@ export async function upsertRecords(
     }
   }
 
-  const embeddingsResponse = await getPinecone().inference.embed({
-    model: EMBEDDING_MODEL,
-    inputs: chunks,
-    parameters: { input_type: 'passage', truncate: 'END' },
-  });
+  // Batch the embedding call — Pinecone's inference.embed has a limit
+  // on the number of inputs per request. Batch in groups of 100.
+  const EMBED_BATCH_SIZE = 100;
+  const allVectors: any[] = [];
 
-  const vectors = embeddingsResponse.data.map((emb: any, i: number) => ({
-    id: `${filename}_${i}_${uuidv4().slice(0, 8)}`,
-    values: emb.values as number[],
-    metadata: {
-      filename,
-      text: chunks[i],
-      chunk_index: i,
-      total_chunks: chunks.length,
-      doc_type: metadata?.doc_type || 'note',
-      project: metadata?.project || 'tradingview-notes',
-      version: metadata?.version || '1.0',
-      uploaded_at: metadata?.uploaded_at || Date.now(),
-      ticker: metadata?.ticker || '',
-      note_id: metadata?.note_id || '',
-    },
-  }));
+  for (let i = 0; i < chunks.length; i += EMBED_BATCH_SIZE) {
+    const chunkBatch = chunks.slice(i, i + EMBED_BATCH_SIZE);
+    const embeddingsResponse = await getPinecone().inference.embed({
+      model: EMBEDDING_MODEL,
+      inputs: chunkBatch,
+      parameters: { input_type: 'passage', truncate: 'END' },
+    });
 
-  if (vectors.length > 0) {
-    await pineconeIndex().upsert({ records: vectors });
+    const batchVectors = embeddingsResponse.data.map((emb: any, j: number) => ({
+      id: `${filename}_${i + j}_${uuidv4().slice(0, 8)}`,
+      values: emb.values as number[],
+      metadata: {
+        filename,
+        text: chunkBatch[j],
+        chunk_index: i + j,
+        total_chunks: chunks.length,
+        doc_type: metadata?.doc_type || 'note',
+        project: metadata?.project || 'tradingview-notes',
+        version: metadata?.version || '1.0',
+        uploaded_at: metadata?.uploaded_at || Date.now(),
+        ticker: metadata?.ticker || '',
+        note_id: metadata?.note_id || '',
+      },
+    }));
+    allVectors.push(...batchVectors);
+  }
+
+  // Batch the upsert — Pinecone limits 1000 vectors per upsert request.
+  const UPSERT_BATCH_SIZE = 1000;
+  for (let i = 0; i < allVectors.length; i += UPSERT_BATCH_SIZE) {
+    const batch = allVectors.slice(i, i + UPSERT_BATCH_SIZE);
+    await pineconeIndex().upsert({ records: batch });
   }
 
   return { status: 'success', filename, chunks: chunks.length };
