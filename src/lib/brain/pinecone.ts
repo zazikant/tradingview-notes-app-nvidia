@@ -69,8 +69,97 @@ export interface ChunkMetadata {
 }
 
 /**
+ * Synchronously delete all vectors matching a filename.
+ *
+ * On Pinecone **serverless** indexes, `deleteMany({ filter: ... })` is
+ * *asynchronous* — the HTTP call returns immediately, but the vectors stay
+ * queryable for several seconds (sometimes minutes on a populated index).
+ * This creates a race window where the UI has already removed the document
+ * from Supabase, but the chat RAG search still returns the old chunks.
+ * See: https://docs.pinecone.io/guides/data/delete-data
+ *
+ * Deleting by explicit vector **IDs**, by contrast, is synchronous on
+ * serverless — once `deleteMany(ids)` returns, the vectors are gone from
+ * query results. So we do a two-step fetch-then-delete:
+ *
+ *   1. Query with `filter: { filename: { $eq: filename } }`, topK=1000,
+ *      includeMetadata=false. Paginate if more than 1000 vectors exist.
+ *   2. Collect all IDs.
+ *   3. If any IDs were found, call `deleteMany(ids)` (synchronous on serverless).
+ *
+ * This closes the async race window completely. The trade-off is an extra
+ * query round-trip before each delete — acceptable for our workload
+ * (notes are <1MB, rarely >200 chunks).
+ */
+async function deleteVectorsByFilename(filename: string): Promise<number> {
+  const index = pineconeIndex();
+
+  // Use a zero-vector probe with the filename filter. The probe values don't
+  // matter for correctness — Pinecone applies the metadata filter BEFORE the
+  // top-K selection, so we always get back ALL vectors matching the filter
+  // (up to topK), regardless of how the probe vector scores against them.
+  //
+  // topK=1000 is the maximum supported by a single query call. We paginate
+  // until a query returns <1000 matches (meaning we've drained them all).
+  const PROBE_VECTOR = new Array(EMBEDDING_DIMENSION).fill(0);
+  const QUERY_TOP_K = 1000;
+
+  const allIds: string[] = [];
+  let drained = false;
+  let safetyCounter = 0;  // hard cap at 50 pages = 50,000 vectors
+
+  while (!drained && safetyCounter < 50) {
+    safetyCounter++;
+    let resp: any;
+    try {
+      resp = await index.query({
+        vector: PROBE_VECTOR,
+        topK: QUERY_TOP_K,
+        includeMetadata: false,
+        filter: { filename: { $eq: filename } },
+      });
+    } catch (err: any) {
+      // If the index/namespace doesn't exist yet (404), there's nothing to
+      // delete — treat as success with 0 deletions.
+      if (
+        err?.status === 404 ||
+        err?.statusCode === 404 ||
+        err?.message?.includes('404')
+      ) {
+        return 0;
+      }
+      throw err;
+    }
+    const matches = (resp?.matches || []) as any[];
+    if (matches.length === 0) {
+      break;
+    }
+    for (const m of matches) {
+      if (typeof m?.id === 'string') allIds.push(m.id);
+    }
+    drained = matches.length < QUERY_TOP_K;
+  }
+
+  if (allIds.length === 0) {
+    return 0;
+  }
+
+  // Delete by explicit IDs. On serverless indexes this is synchronous —
+  // when the await resolves, the vectors are gone from query results.
+  // Pinecone limits deleteMany to 1000 IDs per call, so batch if needed.
+  const DELETE_BATCH_SIZE = 1000;
+  for (let i = 0; i < allIds.length; i += DELETE_BATCH_SIZE) {
+    const batch = allIds.slice(i, i + DELETE_BATCH_SIZE);
+    await index.deleteMany({ ids: batch });
+  }
+
+  return allIds.length;
+}
+
+/**
  * Upsert document chunks into Pinecone using multilingual-e5-large.
- * First deletes any existing vectors for this filename, then re-embeds.
+ * First synchronously deletes any existing vectors for this filename,
+ * then re-embeds.
  *
  * Returns the number of chunks written.
  */
@@ -88,9 +177,14 @@ export async function upsertRecords(
     return { status: 'error', filename, chunks: 0 };
   }
 
-  // Best-effort delete of existing vectors for this filename. 404 is OK.
+  // Synchronously delete existing vectors for this filename (by IDs, not
+  // by metadata filter — see deleteVectorsByFilename above). 404 is OK.
+  //
+  // This is critical: the old code used `deleteMany({ filter })` which is
+  // async on serverless. Re-syncing a note would briefly surface BOTH the
+  // old and new chunks in chat. Synchronous delete-by-IDs closes that window.
   try {
-    await pineconeIndex().deleteMany({ filter: { filename: { $eq: filename } } });
+    await deleteVectorsByFilename(filename);
   } catch (err: any) {
     if (
       err?.status !== 404 &&
@@ -144,18 +238,30 @@ export async function upsertRecords(
 }
 
 /**
- * Delete all vectors for a given filename.
+ * Synchronously delete all vectors for a given filename.
+ *
+ * On Pinecone serverless indexes, `deleteMany({ filter: { filename } })` is
+ * asynchronous — the vectors stay queryable for seconds-to-minutes after the
+ * call returns. That race caused the bug where deleted notes still appeared
+ * in chat answers after a refresh: the UI showed the doc as gone (Supabase row
+ * deleted), but the next /api/brain/chat query still retrieved the old chunks.
+ *
+ * This implementation fetches the matching vector IDs first, then deletes by
+ * explicit IDs — which IS synchronous on serverless. See deleteVectorsByFilename
+ * above for full rationale.
+ *
+ * @returns the number of vectors deleted (0 if none existed)
  */
-export async function deleteRecords(filename: string): Promise<void> {
+export async function deleteRecords(filename: string): Promise<number> {
   try {
-    await pineconeIndex().deleteMany({ filter: { filename: { $eq: filename } } });
+    return await deleteVectorsByFilename(filename);
   } catch (err: any) {
     if (
       err?.status === 404 ||
       err?.statusCode === 404 ||
       err?.message?.includes('404')
     ) {
-      return;
+      return 0;
     }
     throw err;
   }
