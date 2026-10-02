@@ -221,8 +221,15 @@ The context below contains chunks from multiple documents. Before answering, syn
           try {
             const result = await nvidiaChatStreamControlled({
               messages,
-              // Use Nemotron defaults from nvidia.ts: temp=0.5, top_p=1.0, max_tokens=1024, reasoning_effort=low
-              // Nemotron is fast (~4s) and produces clean content — no need to override.
+              // RAG use case: cap output to prevent hallucination runaway.
+              // The SYSTEM_PROMPT asks for "VERY LONG (up to 30000 chars)" answers,
+              // but with thin context (5000 chars of retrieved notes), giving the
+              // model 50K chars of headroom causes it to fabricate content to fill
+              // the gap. 8192 tokens (~6K chars) + 1 continuation round (~12K chars
+              // total) is enough for legitimate technical answers without inviting
+              // hallucination. Override these only for document-summarization use cases.
+              maxTokens: 8192,
+              maxContinuations: 1,
               onLog: (line) => send('log', { line }),
               onChunk: (text) => send('chunk', { text }),
             });
@@ -233,6 +240,15 @@ The context below contains chunks from multiple documents. Before answering, syn
               elapsedMs: result.elapsedMs,
               summary: `${result.content.length} chars in ${result.attempts} attempt(s)${result.continuations > 0 ? `, ${result.continuations} continuation(s)` : ''}${result.truncated ? ' [TRUNCATED]' : ''}`,
             });
+
+            // Surface a verification warning when the model produced a long
+            // answer via continuation — long answers with thin context are
+            // the #1 hallucination risk in RAG. The user should verify
+            // claims against the cited sources.
+            if (result.continuations > 0 || result.content.length > 8000) {
+              send('log', { line: `[pipeline] ⚠️ Long answer (${result.content.length} chars${result.continuations > 0 ? `, ${result.continuations} continuation(s)` : ''}) — verify claims against cited sources. Long outputs with thin context can include hallucinated content.` });
+            }
+
             answerOk = true;
             break;
           } catch (err: any) {

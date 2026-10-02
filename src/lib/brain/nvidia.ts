@@ -30,12 +30,22 @@ const NVIDIA_GATEWAY = 'https://integrate.api.nvidia.com/v1/chat/completions';
 const NVIDIA_DEFAULT_MODEL = 'nvidia/nemotron-3-ultra-550b-a55b';
 const NVIDIA_DEFAULT_TEMPERATURE = 0.3;
 const NVIDIA_DEFAULT_TOP_P = 1.0;
-// Bumped from 4096 → 16384. Nemotron-3-Ultra supports a 128K context window,
-// so 16K output is a safe default that handles most chat answers in a single
-// call. The auto-continue loop picks up any residual truncation.
-const NVIDIA_DEFAULT_MAX_TOKENS = 16384;
+// 8192 tokens ≈ 6K chars. This is the default for chat/RAG use cases where
+// strict fidelity matters — the SYSTEM_PROMPT in chat/route.ts explicitly
+// asks for "VERY LONG (up to 30000 chars)" answers, but with thin context
+// (5000 chars of retrieved notes) the model will hallucinate to fill the
+// gap. Capping max_tokens at 8192 acts as a natural brake: long enough for
+// legitimate technical answers, short enough to prevent runaway fabrication.
+// Callers that genuinely need longer output (e.g. document summarization)
+// can override via opts.maxTokens + opts.maxContinuations.
+const NVIDIA_DEFAULT_MAX_TOKENS = 8192;
 const NVIDIA_DEFAULT_TIMEOUT_MS = 55_000;
-const NVIDIA_DEFAULT_MAX_CONTINUATIONS = 3;
+// Default continuation rounds. 1 is enough for legitimate long technical
+// answers (gives ~16K tokens of effective capacity). Higher values (3) are
+// appropriate for translation/document-generation use cases where the input
+// explicitly demands very long output. RAG callers should pass maxContinuations:1
+// to prevent hallucination runaway when context is sparse.
+const NVIDIA_DEFAULT_MAX_CONTINUATIONS = 1;
 
 export interface ControlledStreamOptions {
   model?: string;
