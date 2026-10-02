@@ -231,7 +231,7 @@ The context below contains chunks from multiple documents. Before answering, syn
               stage: 'answer',
               ok: true,
               elapsedMs: result.elapsedMs,
-              summary: `${result.content.length} chars in ${result.attempts} attempt(s)`,
+              summary: `${result.content.length} chars in ${result.attempts} attempt(s)${result.continuations > 0 ? `, ${result.continuations} continuation(s)` : ''}${result.truncated ? ' [TRUNCATED]' : ''}`,
             });
             answerOk = true;
             break;

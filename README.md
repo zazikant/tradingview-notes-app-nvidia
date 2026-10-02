@@ -1,16 +1,17 @@
 # TradingView Notes App — NVIDIA variant
 
-An exact replica of [`zazikant/tradingview-notes-app`](https://github.com/zazikant/tradingview-notes-app), with the LLM backend swapped from **OpenCode (GLM-5.1)** to **NVIDIA's integrate API (GPT-OSS 20B)**.
+An exact replica of [`zazikant/tradingview-notes-app`](https://github.com/zazikant/tradingview-notes-app), with the LLM backend swapped from **OpenCode (GLM-5.1)** to **NVIDIA's integrate API (Nemotron-3 Ultra 550B)**.
 
 ## What's different from the original
 
 | Aspect | Original | This repo |
 |---|---|---|
 | LLM provider | OpenCode gateway (`https://opencode.ai/zen/go/v1`) | NVIDIA integrate API (`https://integrate.api.nvidia.com/v1`) |
-| Default model | `glm-5.1` (GLM 5.3 thinking model) | `openai/gpt-oss-20b` (NVIDIA-hosted GPT-OSS) |
+| Default model | `glm-5.1` (GLM 5.3 thinking model) | `nvidia/nemotron-3-ultra-550b-a55b` (550B params, 55B active via MoE) |
 | Env var | `OPENCODE_API_KEY` | `NVIDIA_API_KEY` |
-| `reasoning_effort` param | Required (`'low'`) | Not sent (NVIDIA GPT-OSS doesn't need it) |
+| `reasoning_effort` param | Required (`'low'`) | Required (`'low'`) — keeps TTFB fast (~4s) |
 | `x-opencode-session` header | Required | Not sent (OpenCode-specific routing) |
+| Auto-continue on truncation | N/A | Yes — when `finish_reason === 'length'`, automatically resumes with a continuation prompt (up to 3 rounds) |
 
 Everything else — the Brain UI, Sync to Brain flow, multi-select, PDF upload, Supabase schema, Pinecone vector lifecycle, ticker-aware search, pagination — is identical to the original.
 
@@ -64,8 +65,8 @@ Or import the repo at https://vercel.com/new and let Vercel auto-deploy.
 
 Override the default model by editing the chat route, or by passing `model` in the request body to `/api/brain/chat`. Options include:
 
-- `openai/gpt-oss-20b` (default — fast, 20B params)
-- `openai/gpt-oss-120b` (heavier, better for complex reasoning)
+- `nvidia/nemotron-3-ultra-550b-a55b` (default — 550B params, 55B active, best for complex reasoning)
+- `nvidia/nemotron-3-super-120b-a12b` (lighter, faster — 120B params, 12B active)
 - `meta/llama-3.1-405b-instruct`
 - `nvidia/llama-3.1-nemotron-70b-instruct`
 - `mistralai/mixtral-8x22b-instruct-v0.1`
